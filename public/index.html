@@ -299,8 +299,12 @@ async function join(op) {
 
 $('#create').onclick = () => join('create')
 $('#join').onclick = () => join('join')
-$('#code').onkeydown = e => e.key === 'Enter' && join('join')
-$('#name').onkeydown = e => e.key === 'Enter' && join($('#code').value ? 'join' : 'create')
+$('#code').onkeydown = e => {
+  if (e.key === 'Enter') join('join')
+}
+$('#name').onkeydown = e => {
+  if (e.key === 'Enter') join($('#code').value ? 'join' : 'create')
+}
 $('#leave').onclick = async () => {
   if (await send({ op: 'leave' })) exitTable()
 }
