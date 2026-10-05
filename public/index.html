@@ -2,329 +2,107 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hold'em Poker</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♠</text></svg>">
-<style>
-  :root {
-    --bg: #0c1813; --panel: #14261e; --line: #24402f; --text: #eef5f0; --muted: #93a99b;
-    --felt: #1c6b45; --felt-dark: #0e3f28; --rim: #4a2f1a; --gold: #f2c14e; --red: #d6413b;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 15px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-  button, input { font: inherit; }
-  button { cursor: pointer; border: 0; border-radius: 10px; padding: 10px 16px; font-weight: 600; background: #2c4a3a; color: var(--text); white-space: nowrap; }
-  button:hover { filter: brightness(1.15); }
-  button:disabled { opacity: .5; cursor: default; filter: none; }
-  button.gold { background: var(--gold); color: #2a1d00; }
-  button.red { background: var(--red); color: #fff; }
-  button.small { padding: 6px 12px; font-size: 13px; }
-  input { background: #0b1611; color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%; }
-  .hidden { display: none !important; }
-
-  /* lobby */
-  #lobby { max-width: 380px; margin: 12vh auto 0; padding: 0 16px; }
-  #lobby h1 { font-size: 40px; margin: 0 0 4px; letter-spacing: -.5px; }
-  #lobby h1 span { color: var(--red); }
-  #lobby p { color: var(--muted); margin: 0 0 24px; }
-  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 12px; }
-  .row { display: flex; gap: 8px; }
-  .or { text-align: center; color: var(--muted); font-size: 13px; }
-
-  /* table screen */
-  #game { max-width: 1100px; margin: 0 auto; padding: 12px 16px 24px; }
-  header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-  header .code { font-weight: 700; font-size: 18px; margin-right: auto; }
-  header .code small { color: var(--muted); font-weight: 400; font-size: 13px; }
-  .table-wrap { padding: 4% 6%; }
-  .table { position: relative; aspect-ratio: 2 / 1; border-radius: 999px; border: 14px solid var(--rim);
-    background: radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 100%); box-shadow: inset 0 0 40px #0008, 0 10px 30px #0008; }
-  .center { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px; text-align: center; }
-  .pot { font-weight: 700; color: var(--gold); }
-  .result { font-size: 14px; background: #0007; padding: 4px 12px; border-radius: 999px; }
-  .cards { display: flex; gap: 4px; justify-content: center; }
-  .card { width: clamp(30px, 5.2vw, 50px); aspect-ratio: 5 / 7; border-radius: 6px; background: #fff; color: #111;
-    display: grid; place-content: center; text-align: center; line-height: 1; font-weight: 700; font-size: clamp(12px, 2vw, 19px); box-shadow: 0 2px 4px #0006; }
-  .card.red { color: var(--red); }
-  .card.back { background: repeating-linear-gradient(45deg, #8e2b2b 0 4px, #a83a3a 4px 8px); border: 2px solid #fff; }
-  .card.slot { background: #0002; border: 1px dashed #fff3; box-shadow: none; }
-  .seat { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 2px; width: clamp(80px, 15vw, 130px); }
-  .seat .cards .card { width: clamp(24px, 3.8vw, 38px); font-size: clamp(10px, 1.5vw, 15px); }
-  .plate { background: #0b1611ee; border: 2px solid var(--line); border-radius: 12px; padding: 4px 8px; text-align: center; width: 100%; position: relative; }
-  .plate b { display: block; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .plate span { font-size: 12px; color: var(--muted); }
-  .seat.turn .plate { border-color: var(--gold); box-shadow: 0 0 12px var(--gold); }
-  .seat.me .plate b { color: var(--gold); }
-  .seat.out { opacity: .45; }
-  .timer { height: 3px; background: var(--gold); border-radius: 2px; margin-top: 3px; }
-  .bet { font-size: 12px; font-weight: 700; background: var(--gold); color: #2a1d00; border-radius: 999px; padding: 1px 8px; }
-  .tag { font-size: 11px; color: var(--gold); }
-  .dealer { position: absolute; top: -8px; right: -8px; width: 20px; height: 20px; border-radius: 50%; background: #fff; color: #111;
-    font-size: 11px; font-weight: 800; display: grid; place-content: center; }
-
-  /* controls */
-  .bar { margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-height: 64px; }
-  .bar .msg { color: var(--muted); margin-right: auto; }
-  .raise { display: flex; gap: 8px; align-items: center; flex: 1 1 260px; }
-  .raise input[type=range] { padding: 0; accent-color: var(--gold); }
-  .raise input[type=number] { width: 90px; }
-  .log { margin-top: 12px; color: var(--muted); font-size: 13px; max-height: 140px; overflow: auto; display: flex; flex-direction: column-reverse; }
-  #toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: #000d; border: 1px solid var(--line); color: #fff; padding: 10px 16px; border-radius: 10px; font-weight: 600; z-index: 9; }
-
-  @media (max-width: 640px) {
-    .table { aspect-ratio: 3 / 4; border-width: 10px; border-radius: 160px; }
-    .table-wrap { padding: 12% 10%; }
-    .seat { width: 84px; }
-  }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hold'em Party</title>
+<meta name="description" content="Texas Hold'em with friends. Beginner friendly.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23E8413C'/><circle cx='50' cy='50' r='30' fill='%23FFC233'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Lilita+One&display=swap">
+<link rel="stylesheet" href="style.css">
+<script type="module" src="app.js"></script>
 </head>
 <body>
+<div class="sky" aria-hidden="true">
+  <div class="cloud" style="top: 8%; animation-duration: 70s; animation-delay: -20s"><span style="width: 90px; height: 46px"></span><span style="width: 76px; height: 76px; margin-left: -38px"></span><span style="width: 100px; height: 50px; margin-left: -30px"></span></div>
+  <div class="cloud" style="top: 46%; animation-duration: 95s; animation-delay: -60s; opacity: .8"><span style="width: 70px; height: 38px"></span><span style="width: 60px; height: 60px; margin-left: -28px"></span><span style="width: 80px; height: 42px; margin-left: -22px"></span></div>
+  <div class="cloud" style="top: 72%; animation-duration: 120s; animation-delay: -10s; opacity: .7"><span style="width: 60px; height: 32px"></span><span style="width: 52px; height: 52px; margin-left: -24px"></span><span style="width: 70px; height: 36px; margin-left: -20px"></span></div>
+</div>
+<canvas id="table3d" aria-hidden="true"></canvas>
 
-<section id="lobby">
-  <h1>Hold'em <span>♥</span></h1>
-  <p>Texas Hold'em with friends. Create a table and share the link.</p>
-  <div class="box">
-    <input id="name" placeholder="Your name" maxlength="16" autocomplete="nickname">
-    <button class="gold" id="create">Create table</button>
-    <div class="or">or join with a code</div>
-    <div class="row">
-      <input id="code" placeholder="ABCD" maxlength="4" style="text-transform:uppercase">
-      <button id="join">Join</button>
+<main id="lobby" class="lobby">
+  <section class="hero">
+    <canvas id="logo3d" aria-hidden="true"></canvas>
+    <h1 class="title">HOLD'EM PARTY!</h1>
+    <p class="tagline">Texas Hold'em with friends. Never played? We’ll guide you.</p>
+    <div class="pills"><span>2–8 players</span><span>Free chips</span><span>Beginner hints</span></div>
+  </section>
+  <section class="panel">
+    <h2>1. Pick your buddy</h2>
+    <div class="avatars" id="avatars" role="radiogroup" aria-label="Pick your buddy"></div>
+    <label for="name" class="h2">2. Your name</label>
+    <input id="name" placeholder="e.g. Lucky Frog" maxlength="16" autocomplete="nickname">
+    <button class="chunky yellow big" id="create">CREATE TABLE</button>
+    <div class="or"><span></span>or join your friends<span></span></div>
+    <div class="join">
+      <label class="sr" for="code">Table code</label>
+      <input id="code" placeholder="CODE" maxlength="4" autocomplete="off">
+      <button class="chunky blue" id="join">JOIN</button>
+    </div>
+    <button class="linkbtn" data-guide>New to poker? Learn it in 1 minute →</button>
+  </section>
+  <div class="hill" aria-hidden="true"></div>
+</main>
+
+<main id="game" class="game" hidden>
+  <header class="hud">
+    <div class="tablechip"><span class="chipicon"></span><span class="tablelabel">TABLE</span> <b id="roomCode"></b></div>
+    <span class="blinds">Blinds 10 / 20</span>
+    <span class="ticker" id="ticker" aria-live="polite"></span>
+    <button class="hudbtn guidebtn" data-guide>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M10 8.5a2 2 0 1 1 2.5 1.9c-.5.2-.5.6-.5 1.1"/><path d="M12 14.5h.01"/></svg>
+      <span>Hand guide</span>
+    </button>
+    <button class="hudbtn round" id="invite" aria-label="Copy invite link">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
+    </button>
+    <button class="hudbtn round" id="sound" aria-label="Turn sound off">
+      <svg class="on" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      <svg class="off" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 6 6"/><path d="m22 9-6 6"/></svg>
+    </button>
+    <button class="hudbtn round" id="leave" aria-label="Leave table">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+    </button>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="felt" aria-hidden="true"></div>
+    <div id="seats"></div>
+    <div class="center">
+      <div class="pot" id="pot">POT 0</div>
+      <div class="board" id="board"></div>
+      <div class="streets"><span class="flop">FLOP</span><span>TURN</span><span>RIVER</span></div>
+    </div>
+    <div class="banner" id="banner" hidden></div>
+  </div>
+
+  <div class="dock">
+    <div class="me" id="me"></div>
+    <div class="helper" id="helper" hidden></div>
+    <div class="mycards" id="mycards"></div>
+    <div class="actions" id="actions"></div>
+  </div>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="guide" id="guide" aria-label="Hand guide" hidden>
+  <div class="guide-head">
+    <div class="guide-title">
+      <div>
+        <h2>HAND GUIDE</h2>
+        <p>Poker in one minute. No experience needed.</p>
+      </div>
+      <button class="close" id="guideClose" aria-label="Close guide"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></button>
+    </div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="hands" aria-selected="true">Hands</button>
+      <button role="tab" data-tab="play" aria-selected="false">How to play</button>
+      <button role="tab" data-tab="buttons" aria-selected="false">Buttons</button>
     </div>
   </div>
-</section>
+  <div class="guide-body" id="guideBody"></div>
+</aside>
 
-<section id="game" class="hidden">
-  <header>
-    <div class="code">Table <span id="roomCode"></span> <small>· blinds 10/20</small></div>
-    <button class="small" id="invite">Copy invite link</button>
-    <button class="small" id="sit"></button>
-    <button class="small" id="leave">Leave</button>
-  </header>
-  <div class="table-wrap"><div class="table" id="table"></div></div>
-  <div class="bar" id="bar"></div>
-  <div class="log" id="log"></div>
-</section>
-
-<div id="toast" class="hidden"></div>
-
-<script>
-const $ = s => document.querySelector(s)
-const SUITS = { s: '♠', h: '♥', d: '♦', c: '♣' }
-const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`)
-
-const store = {
-  get: k => { try { return localStorage.getItem(k) } catch { return null } },
-  set: (k, v) => { try { localStorage.setItem(k, v) } catch {} },
-}
-const pid = store.get('pid') || crypto.randomUUID()
-store.set('pid', pid)
-
-let code = (new URLSearchParams(location.search).get('room') || '').toUpperCase()
-let view = null
-let pollTimer = null
-let controlsKey = ''
-
-function toast(msg) {
-  const t = $('#toast')
-  t.textContent = msg
-  t.classList.remove('hidden')
-  clearTimeout(toast.timer)
-  toast.timer = setTimeout(() => t.classList.add('hidden'), 3000)
-}
-
-async function send(body) {
-  try {
-    const res = await fetch('/api/room', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pid, code, ...body }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error)
-    return data
-  } catch (e) {
-    toast(e.message || 'Network error')
-    return null
-  }
-}
-
-async function poll() {
-  clearTimeout(pollTimer)
-  try {
-    const res = await fetch(`/api/room?code=${encodeURIComponent(code)}&pid=${encodeURIComponent(pid)}`)
-    const data = await res.json()
-    if (res.ok) render(data)
-    else if (data.error === 'Table not found') return exitTable('That table no longer exists')
-  } catch {}
-  if (code) pollTimer = setTimeout(poll, 1500)
-}
-
-function enterTable(data) {
-  code = data.code
-  history.replaceState(null, '', `?room=${code}`)
-  $('#lobby').classList.add('hidden')
-  $('#game').classList.remove('hidden')
-  $('#roomCode').textContent = code
-  render(data)
-  pollTimer = setTimeout(poll, 1500)
-}
-
-function exitTable(msg) {
-  clearTimeout(pollTimer)
-  code = ''
-  view = null
-  history.replaceState(null, '', location.pathname)
-  $('#game').classList.add('hidden')
-  $('#lobby').classList.remove('hidden')
-  if (msg) toast(msg)
-}
-
-function cardHtml(c) {
-  if (!c) return '<div class="card back"></div>'
-  const rank = c[0] === 'T' ? '10' : c[0]
-  return `<div class="card ${'hd'.includes(c[1]) ? 'red' : ''}"><span>${rank}</span><span>${SUITS[c[1]]}</span></div>`
-}
-
-function render(v) {
-  view = v
-  if (v.me < 0) return exitTable()
-  const h = v.hand
-  const n = v.players.length
-
-  const seats = v.players.map((p, i) => {
-    const angle = Math.PI / 2 + ((i - v.me) / n) * 2 * Math.PI
-    const left = 50 + 47 * Math.cos(angle)
-    const top = 50 + 47 * Math.sin(angle)
-    const turn = h && !h.done && h.toAct === i
-    const out = p.folded || p.sitOut || p.left || (h && !h.done && !p.inHand)
-    const tag = p.left ? 'left' : p.sitOut ? 'sitting out' : p.folded ? 'folded' : p.allIn ? 'ALL-IN' : p.handName || ''
-    return `<div class="seat ${turn ? 'turn' : ''} ${out ? 'out' : ''} ${i === v.me ? 'me' : ''}" style="left:${left}%;top:${top}%">
-      <div class="cards">${p.cards.map(cardHtml).join('')}</div>
-      <div class="plate">
-        ${i === v.button && h ? '<div class="dealer">D</div>' : ''}
-        <b>${esc(p.name)}</b><span>${p.chips}</span>
-        ${turn ? `<div class="timer" style="width:${(h.turnLeft / 30000) * 100}%"></div>` : ''}
-      </div>
-      ${tag ? `<div class="tag">${esc(tag)}</div>` : ''}
-      ${p.bet ? `<div class="bet">${p.bet}</div>` : ''}
-    </div>`
-  }).join('')
-
-  let center = '<div class="result">Waiting to deal</div>'
-  if (h) {
-    const board = [0, 1, 2, 3, 4].map(i => (h.board[i] ? cardHtml(h.board[i]) : '<div class="card slot"></div>')).join('')
-    const results = h.done
-      ? h.results.map(r => `<div class="result">${esc(r.name)} wins ${r.amount}${r.hand ? ` · ${esc(r.hand)}` : ''}</div>`).join('')
-      : ''
-    center = `<div class="pot">Pot ${h.pot}</div><div class="cards">${board}</div>${results}`
-  }
-  $('#table').innerHTML = `${seats}<div class="center">${center}</div>`
-  $('#log').innerHTML = v.log.slice().reverse().map(l => `<div>${esc(l)}</div>`).join('')
-  $('#sit').textContent = v.players[v.me].sitOut ? "I'm back" : 'Sit out'
-  renderControls(v)
-}
-
-function renderControls(v) {
-  const h = v.hand
-  const me = v.players[v.me]
-  const myTurn = h && !h.done && h.toAct === v.me
-  const bar = $('#bar')
-  const canPlay = v.players.filter(p => p.chips > 0 && !p.sitOut && !p.left).length
-
-  if (!myTurn) {
-    let msg = ''
-    let buttons = ''
-    if (me.chips === 0 && !(h && !h.done && me.inHand)) buttons += '<button class="gold" data-op="rebuy">Rebuy 1000</button>'
-    if (me.sitOut) msg = 'You are sitting out.'
-    else if (!h) msg = canPlay >= 2 ? 'Ready when you are.' : 'Waiting for players… share the invite link.'
-    else if (h.done) msg = canPlay >= 2 ? 'Next hand starting…' : 'Waiting for players…'
-    else if (!me.inHand) msg = 'You join next hand.'
-    else msg = me.folded ? 'You folded.' : `Waiting for ${esc(v.players[h.toAct].name)}…`
-    if (h?.myHand && !h.done) msg += ` You have: <b>${esc(h.myHand)}</b>`
-    if (!h && canPlay >= 2) buttons += '<button class="gold" data-op="start">Deal</button>'
-    const html = `<div class="msg">${msg}</div>${buttons}`
-    if (html !== controlsKey) bar.innerHTML = controlsKey = html
-    return
-  }
-
-  // Only rebuild the betting controls when the situation changes, so the raise slider keeps its value.
-  const key = `turn-${h.board.length}-${h.currentBet}-${me.bet}-${me.chips}`
-  if (key === controlsKey) return
-  controlsKey = key
-
-  const toCall = Math.min(h.currentBet - me.bet, me.chips)
-  const maxTo = me.bet + me.chips
-  const minTo = Math.min(h.currentBet + h.minRaise, maxTo)
-  const word = h.currentBet === 0 ? 'Bet' : 'Raise to'
-  bar.innerHTML = `
-    <div class="msg">Your turn${h.myHand ? ` · <b>${esc(h.myHand)}</b>` : ''}</div>
-    ${toCall > 0 ? '<button class="red" data-act="fold">Fold</button>' : ''}
-    <button data-act="${toCall > 0 ? 'call' : 'check'}">${toCall > 0 ? `Call ${toCall}` : 'Check'}</button>
-    ${maxTo > minTo ? `<div class="raise">
-      <input type="range" id="raiseRange" min="${minTo}" max="${maxTo}" step="${v.bigBlind / 2}" value="${minTo}">
-      <input type="number" id="raiseNum" min="${minTo}" max="${maxTo}" value="${minTo}">
-      <button class="gold" data-act="raise">${word}</button>
-    </div>` : ''}
-    ${maxTo > h.currentBet ? '<button class="gold" data-act="allin">All-in</button>' : ''}`
-  const range = $('#raiseRange')
-  if (range) {
-    range.oninput = () => ($('#raiseNum').value = range.value)
-    $('#raiseNum').oninput = () => (range.value = $('#raiseNum').value)
-  }
-}
-
-$('#bar').addEventListener('click', async e => {
-  const btn = e.target.closest('button')
-  if (!btn) return
-  btn.disabled = true
-  const body = btn.dataset.act
-    ? { op: 'act', action: btn.dataset.act, amount: Number($('#raiseNum')?.value) }
-    : { op: btn.dataset.op }
-  const data = await send(body)
-  controlsKey = ''
-  if (data) render(data)
-  else if (view) renderControls(view)
-})
-
-async function join(op) {
-  const name = $('#name').value.trim()
-  if (!name) return toast('Enter your name')
-  store.set('name', name)
-  if (op === 'join') code = $('#code').value.trim().toUpperCase()
-  if (op === 'join' && code.length !== 4) return toast('Enter the 4-letter table code')
-  const data = await send({ op, name })
-  if (data) enterTable(data)
-}
-
-$('#create').onclick = () => join('create')
-$('#join').onclick = () => join('join')
-$('#code').onkeydown = e => {
-  if (e.key === 'Enter') join('join')
-}
-$('#name').onkeydown = e => {
-  if (e.key === 'Enter') join($('#code').value ? 'join' : 'create')
-}
-$('#leave').onclick = async () => {
-  if (await send({ op: 'leave' })) exitTable()
-}
-$('#sit').onclick = async () => {
-  const data = await send({ op: view.players[view.me].sitOut ? 'back' : 'sitout' })
-  if (data) render(data)
-}
-$('#invite').onclick = async () => {
-  const link = `${location.origin}/?room=${code}`
-  try {
-    await navigator.clipboard.writeText(link)
-    toast('Invite link copied')
-  } catch {
-    prompt('Share this link', link)
-  }
-}
-
-$('#name').value = store.get('name') || ''
-$('#code').value = code
-if (code && store.get('name')) join('join')
-</script>
+<div id="toast" role="status" hidden></div>
 </body>
 </html>

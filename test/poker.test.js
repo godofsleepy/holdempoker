@@ -122,3 +122,24 @@ test('random play never creates or loses chips', () => {
     }
   }
 })
+
+test('beginner info: hand strength, action labels, winner seat', () => {
+  assert.deepEqual(poker.describeHand(['7h', '7c']), { name: 'Pair', strength: 1 })
+  assert.deepEqual(poker.describeHand(['Ah', 'Kc']), { name: 'High Card', strength: 0 })
+  assert.equal(poker.describeHand('As Ks Qs Js Ts 2d 3c'.split(' ')).strength, 9)
+  assert.equal(poker.describeHand('7h 7c 7d Ks 2c'.split(' ')).name, 'Three of a Kind')
+
+  const room = table(3)
+  poker.startHand(room, 0)
+  assert.equal(room.handNo, 1)
+  assert.deepEqual(room.players.map(p => p.action).sort(), ['', 'BLIND 10', 'BLIND 20'])
+  const first = room.players[room.hand.toAct]
+  poker.act(room, first.id, 'raise', 60, 0)
+  assert.equal(first.action, 'RAISE 60')
+  const second = room.players[room.hand.toAct]
+  poker.act(room, second.id, 'fold', 0, 0)
+  assert.equal(second.action, 'FOLD')
+  const third = room.players[room.hand.toAct]
+  poker.act(room, third.id, 'fold', 0, 0)
+  assert.equal(room.hand.results[0].seat, room.players.indexOf(first))
+})
