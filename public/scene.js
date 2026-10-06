@@ -3,7 +3,6 @@
 // with the HTML seats drawn on top.
 import * as THREE from './vendor/three.module.min.js'
 
-const TOP = 0.3 // height of the felt surface
 const CHIP_COLORS = ['#E8413C', '#1F7AE0', '#2DB84D', '#FFC233', '#26324B']
 
 const gradient = new THREE.DataTexture(
@@ -84,70 +83,56 @@ function chipMaterials() {
 
 export function createTable(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
+  // Same camera as the design: looking down at the table from the near side.
   const scene = new THREE.Scene()
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 400)
-  camera.position.set(0, 34, 15)
-  camera.lookAt(0, 0, 0)
+  const camera = new THREE.PerspectiveCamera(34, 16 / 9, 0.1, 300)
+  camera.position.set(0, 30, 21)
+  camera.lookAt(0, 0, 2)
   const camBase = camera.position.clone()
 
   scene.add(new THREE.HemisphereLight('#ffffff', '#3d7a3a', 1.7))
-  const sun = new THREE.DirectionalLight('#ffffff', 2.3)
-  sun.position.set(-12, 34, 16)
+  const sun = new THREE.DirectionalLight('#ffffff', 2.4)
+  sun.position.set(-10, 30, 14)
   sun.castShadow = true
   sun.shadow.mapSize.set(2048, 2048)
-  Object.assign(sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, near: 1, far: 120 })
+  Object.assign(sun.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 90 })
   sun.shadow.camera.updateProjectionMatrix()
   scene.add(sun)
 
-  // Floating island: unit radius, stretched in fit() to sit under the HTML table area.
-  const island = new THREE.Group()
-  const felt = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.4, 96),
-    [toon({ color: '#2C9E49' }), toon({ color: '#43C463' }), toon({ color: '#2C9E49' })])
-  felt.position.y = TOP - 0.2
-  felt.receiveShadow = true
-  const rim = new THREE.Mesh(new THREE.CylinderGeometry(1.045, 1, 1.2, 96), toon({ color: '#FFC233' }))
-  rim.position.y = TOP - 0.75
-  const line = new THREE.Mesh(new THREE.RingGeometry(0.74, 0.752, 96),
-    new THREE.MeshBasicMaterial({ color: '#8BE39B', transparent: true, opacity: 0.6 }))
-  line.rotation.x = -Math.PI / 2
-  line.position.y = TOP + 0.01
-  const rock = new THREE.Mesh(new THREE.ConeGeometry(1, 8, 48), toon({ color: '#A0714B' }))
-  rock.rotation.x = Math.PI
-  rock.position.y = TOP - 1.35 - 4
-  island.add(felt, rim, line, rock)
-  scene.add(island)
+  const world = new THREE.Group() // island, clouds and floating chips; rebuilt when the layout changes
+  scene.add(world)
 
-  // Effects are modelled in "pixels" and scaled by S (world units per screen pixel), set in fit().
-  let S = 0.03
-  const chipGeo = new THREE.CylinderGeometry(15, 15, 5, 32)
-  const cardGeo = new THREE.BoxGeometry(40, 1.5, 56)
+  let W = 1280
+  let H = 720
+  let MX = 0 // extra stage px rendered on each side, so the scene fills the whole window
+  let MY = 0
+  let K = 1 // effect scale: 1 for the design's 1280×720 table
+  const ray = new THREE.Raycaster()
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+  // Stage point (design px) -> point on the felt.
+  const toPlane = ([x, y]) => {
+    ray.setFromCamera(new THREE.Vector2(((x + MX) / (W + 2 * MX)) * 2 - 1, 1 - ((y + MY) / (H + 2 * MY)) * 2), camera)
+    return ray.ray.intersectPlane(plane, new THREE.Vector3()) || new THREE.Vector3()
+  }
+
+  const chipGeo = new THREE.CylinderGeometry(0.62, 0.62, 0.2, 36)
+  const cardGeo = new THREE.BoxGeometry(1.4, 0.05, 1.95)
   const white = toon({ color: '#ffffff' })
-  const backMat = toon({ map: canvasTexture(256, 360, drawCardBack) })
-  const cardMats = [white, white, backMat, white, white, white]
+  const cardMats = [white, white, toon({ map: canvasTexture(256, 360, drawCardBack) }), white, white, white]
   const makeChip = color => {
     const m = new THREE.Mesh(chipGeo, chipMaterials()[color % CHIP_COLORS.length])
     m.castShadow = true
-    m.scale.setScalar(S)
+    m.scale.setScalar(K)
     return m
   }
   const makeCard = () => {
     const m = new THREE.Mesh(cardGeo, cardMats)
     m.castShadow = true
-    m.scale.setScalar(S)
+    m.scale.setScalar(K)
     return m
-  }
-
-  let W = 1
-  let H = 1
-  const ray = new THREE.Raycaster()
-  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TOP)
-  const toPlane = pt => {
-    ray.setFromCamera(new THREE.Vector2((pt.x / W) * 2 - 1, 1 - (pt.y / H) * 2), camera)
-    return ray.ray.intersectPlane(plane, new THREE.Vector3()) || new THREE.Vector3(0, TOP, 0)
   }
 
   const stacks = [0, 1, 2].map(() => {
@@ -155,63 +140,86 @@ export function createTable(canvas) {
     scene.add(g)
     return g
   })
-  let pot = new THREE.Vector3(0, TOP, 0)
+  let pot = new THREE.Vector3()
   const chipCount = () => stacks.reduce((n, g) => n + g.children.length, 0)
   const addChip = color => {
     const g = stacks.reduce((a, b) => (b.children.length < a.children.length ? b : a))
     const c = makeChip(color)
-    c.position.y = (2.5 + g.children.length * 5) * S
+    c.position.y = (0.1 + g.children.length * 0.2) * K
     c.rotation.y = Math.random() * 6
     g.add(c)
   }
   const placeStacks = () => {
-    const offsets = [[-36, 8], [0, -10], [36, 6]]
+    const offsets = [[-1.2, 0.2], [0, -0.5], [1.2, 0.1]]
     stacks.forEach((g, i) => {
-      g.position.set(pot.x + offsets[i][0] * S, TOP, pot.z + offsets[i][1] * S)
+      g.position.set(pot.x + offsets[i][0] * K, 0, pot.z + offsets[i][1] * K)
       g.children.forEach((c, k) => {
-        c.scale.setScalar(S)
-        c.position.y = (2.5 + k * 5) * S
+        c.scale.setScalar(K)
+        c.position.y = (0.1 + k * 0.2) * K
       })
     })
   }
 
-  const floaters = [0, 1, 2, 3].map(i => {
-    const c = makeChip(i + 1)
-    scene.add(c)
-    return c
-  })
+  let floaters = []
+  let clouds = []
 
-  // Stretch the island so it sits under the given screen rectangle (the HTML table area).
-  function fit(rect) {
-    if (!rect || !rect.width) return
-    const cx = rect.left + rect.width / 2
-    const far = toPlane({ x: cx, y: rect.top + rect.height * 0.08 })
-    const near = toPlane({ x: cx, y: rect.bottom - rect.height * 0.07 })
-    const center = new THREE.Vector3(far.x, TOP, (far.z + near.z) / 2)
-    const centerPx = center.clone().project(camera)
-    const side = toPlane({ x: rect.right - rect.width * 0.03, y: ((1 - centerPx.y) / 2) * H })
-    const halfWidth = Math.max(0.5, Math.abs(side.x - center.x))
-    island.position.set(center.x, 0, center.z)
-    island.scale.set(halfWidth, 1, Math.max(0.5, (near.z - far.z) / 2))
-    S = halfWidth / (rect.width * 0.47)
-    placeStacks()
-    floaters.forEach((c, i) => {
-      c.scale.setScalar(S * 1.5)
-      c.userData.base = new THREE.Vector3(
-        center.x + (i % 2 ? 1 : -1) * (halfWidth + 40 * S),
-        TOP - 30 * S,
-        center.z + (i < 2 ? -0.4 : 0.5) * island.scale.z,
-      )
+  // Build the floating island so its felt covers the given stage rectangle.
+  function buildWorld(rect) {
+    world.clear()
+    const cx = (rect.left + rect.right) / 2
+    const far = toPlane([cx, rect.top])
+    const near = toPlane([cx, rect.bottom])
+    const cz = (far.z + near.z) / 2
+    const rz = (near.z - far.z) / 2
+    const mid = new THREE.Vector3(far.x, 0, cz).project(camera)
+    const midY = ((1 - mid.y) / 2) * (H + 2 * MY) - MY
+    const rx = Math.abs(toPlane([rect.right, midY]).x - toPlane([cx, midY]).x)
+    const x0 = far.x
+    const squash = rz / rx
+    K = (rx + rz) / 24.6
+
+    const felt = new THREE.Mesh(new THREE.CylinderGeometry(rx, rx * 0.947, 1.6 * K, 72),
+      [toon({ color: '#2C9E49' }), toon({ color: '#43C463' }), toon({ color: '#2C9E49' })])
+    felt.scale.z = squash
+    felt.position.set(x0, -0.8 * K, cz)
+    felt.receiveShadow = true
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(rx, 0.7 * K, 20, 96), toon({ color: '#FFC233' }))
+    rim.rotation.x = Math.PI / 2
+    rim.scale.y = squash
+    rim.position.set(x0, 0, cz)
+    const line = new THREE.Mesh(new THREE.RingGeometry(rx * 0.68, rx * 0.7, 96),
+      new THREE.MeshBasicMaterial({ color: '#8BE39B', transparent: true, opacity: 0.7 }))
+    line.rotation.x = -Math.PI / 2
+    line.scale.y = squash
+    line.position.set(x0, 0.02, cz)
+    const rock = new THREE.Mesh(new THREE.ConeGeometry(rx * 0.947, 9 * K, 40), toon({ color: '#A0714B' }))
+    rock.rotation.x = Math.PI
+    rock.scale.z = squash
+    rock.position.set(x0, -6.1 * K, cz)
+    world.add(felt, rim, line, rock)
+
+    const cloudMat = toon({ color: '#ffffff' })
+    clouds = [[-26, -7, 4, 2.2], [25, -8, 6, 2.6], [-22, -6, -12, 1.8], [23, -6, -14, 2], [-8, -12, 16, 2.4], [11, -13, 17, 2.2], [0, -14, -26, 3]]
+      .map(([x, y, z, s]) => {
+        const g = new THREE.Group()
+        for (const [a, b, c, r] of [[0, 0, 0, 1.6], [1.5, 0.2, 0.3, 1.2], [-1.5, -0.1, 0.2, 1.1], [0.6, 0.8, -0.2, 1.1]]) {
+          const m = new THREE.Mesh(new THREE.SphereGeometry(r, 20, 14), cloudMat)
+          m.position.set(a, b, c)
+          g.add(m)
+        }
+        g.position.set(x0 + x * (rx / 15), y * K, cz + z * K)
+        g.scale.setScalar(s * K)
+        world.add(g)
+        return g
+      })
+
+    floaters = [[-21, -1, -2], [21, -1.5, -1], [-19, -3, -10], [19, -2.5, -11]].map(([x, y, z], i) => {
+      const c = makeChip(i + 1)
+      c.scale.setScalar(1.6 * K)
+      c.userData.base = new THREE.Vector3(x0 + x * (rx / 15), y * K, cz + z * K)
+      world.add(c)
+      return c
     })
-  }
-
-  function resize() {
-    W = canvas.clientWidth || window.innerWidth
-    H = canvas.clientHeight || window.innerHeight
-    renderer.setSize(W, H, false)
-    camera.aspect = W / H
-    camera.updateProjectionMatrix()
-    camera.updateMatrixWorld()
   }
 
   // A tiny tween engine: move along an arc, optionally spinning.
@@ -221,19 +229,32 @@ export function createTable(canvas) {
     obj.visible = delay === 0
     tweens.push({ obj, to, dur, start: clock + delay, arc, spin, done, from: null })
   })
-
   const confetti = []
-  const confettiGeo = new THREE.PlaneGeometry(10, 6)
+  const confettiGeo = new THREE.PlaneGeometry(0.42, 0.24)
   const confettiMats = CHIP_COLORS.map(color => new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide }))
   let shakeUntil = 0
 
   const fx = {
-    fit,
-    resize,
-
-    setPot(screenPt, count) {
-      if (screenPt) pot = toPlane(screenPt)
+    // layout: { W, H, margin: [x, y], island: {left, right, top, bottom}, pot: [x, y], pixelRatio }
+    setLayout(layout) {
+      W = layout.W
+      H = layout.H
+      ;[MX, MY] = layout.margin || [0, 0]
+      Object.assign(canvas.style, { left: -MX + 'px', top: -MY + 'px', width: W + 2 * MX + 'px', height: H + 2 * MY + 'px' })
+      renderer.setPixelRatio(layout.pixelRatio)
+      renderer.setSize(W + 2 * MX, H + 2 * MY, false)
+      camera.aspect = W / H
+      camera.fov = W < H ? 50 : 34
+      camera.setViewOffset(W, H, -MX, -MY, W + 2 * MX, H + 2 * MY)
+      camera.position.copy(camBase)
+      camera.updateProjectionMatrix()
+      camera.updateMatrixWorld()
+      buildWorld(layout.island)
+      pot = toPlane(layout.pot)
       placeStacks()
+    },
+
+    setPot(count) {
       while (chipCount() > count) {
         const g = stacks.reduce((a, b) => (b.children.length > a.children.length ? b : a))
         g.remove(g.children[g.children.length - 1])
@@ -241,52 +262,52 @@ export function createTable(canvas) {
       while (chipCount() < count) addChip(chipCount())
     },
 
-    deal(screenPts, onCard) {
+    deal(points, onCard) {
       let i = 0
       for (let round = 0; round < 2; round++) {
-        for (const pt of screenPts) {
+        for (const pt of points) {
           const card = makeCard()
-          card.position.set(pot.x, TOP + 4 * S, pot.z)
+          card.position.set(pot.x, 0.3 * K, pot.z + K)
           scene.add(card)
-          const to = toPlane(pt).add(new THREE.Vector3((round * 22 - 11) * S, 12 * S, 0))
-          const delay = i++ * 90
+          const to = toPlane(pt).add(new THREE.Vector3((round * 0.9 - 0.45) * K, 0.4 * K, 0))
+          const delay = i++ * 110
           setTimeout(onCard, delay)
-          tween(card, to, 480, { delay, arc: 90 * S, spin: Math.PI * 2 })
-            .then(() => setTimeout(() => scene.remove(card), 180))
+          tween(card, to, 520, { delay, arc: 2.6 * K, spin: Math.PI * 2 })
+            .then(() => setTimeout(() => scene.remove(card), 250))
         }
       }
     },
 
-    toss(screenPt, n) {
-      const from = toPlane(screenPt)
+    toss(point, n) {
+      const from = toPlane(point)
       for (let i = 0; i < n; i++) {
         const color = Math.floor(Math.random() * CHIP_COLORS.length)
         const chip = makeChip(color)
-        chip.position.copy(from).add(new THREE.Vector3((Math.random() - 0.5) * 30 * S, 15 * S, (Math.random() - 0.5) * 20 * S))
+        chip.position.copy(from).add(new THREE.Vector3((Math.random() - 0.5) * 1.2 * K, 0.6 * K, (Math.random() - 0.5) * 0.8 * K))
         scene.add(chip)
         const g = stacks[Math.floor(Math.random() * 3)]
         const to = g.position.clone()
-        to.y = TOP + (2.5 + g.children.length * 5) * S
-        tween(chip, to, 600, { delay: i * 60, arc: 120 * S, spin: Math.PI * 4 }).then(() => {
+        to.y = (0.1 + g.children.length * 0.2) * K
+        tween(chip, to, 650, { delay: i * 70, arc: 4.5 * K, spin: Math.PI * 4 }).then(() => {
           scene.remove(chip)
           addChip(color)
         })
       }
     },
 
-    fold(screenPt) {
-      const from = toPlane(screenPt)
+    fold(point) {
+      const from = toPlane(point)
       for (let i = 0; i < 2; i++) {
         const card = makeCard()
-        card.position.copy(from).add(new THREE.Vector3(i * 22 * S, 12 * S, 0))
+        card.position.copy(from).add(new THREE.Vector3(i * 0.9 * K, 0.5 * K, 0))
         scene.add(card)
-        const to = pot.clone().add(new THREE.Vector3((90 + i * 14) * S, 2 * S, -40 * S))
-        tween(card, to, 500, { delay: i * 80, arc: 70 * S, spin: Math.PI * 3 }).then(() => scene.remove(card))
+        const to = pot.clone().add(new THREE.Vector3((3 + i) * K, 0.2 * K, -2 * K))
+        tween(card, to, 500, { delay: i * 80, arc: 3 * K, spin: Math.PI * 3 }).then(() => scene.remove(card))
       }
     },
 
-    win(screenPts) {
-      const targets = screenPts.map(toPlane)
+    win(points) {
+      const targets = points.map(toPlane)
       let k = 0
       stacks.forEach(g => {
         g.children.slice().forEach((c, i) => {
@@ -295,19 +316,19 @@ export function createTable(canvas) {
           c.position.copy(at)
           scene.add(c)
           const to = targets[k++ % targets.length].clone()
-            .add(new THREE.Vector3((Math.random() - 0.5) * 40 * S, 10 * S, (Math.random() - 0.5) * 40 * S))
-          tween(c, to, 700, { delay: i * 40 + Math.random() * 120, arc: 140 * S, spin: Math.PI * 2 })
+            .add(new THREE.Vector3((Math.random() - 0.5) * 1.5 * K, 0.5 * K, (Math.random() - 0.5) * 1.5 * K))
+          tween(c, to, 700, { delay: i * 45 + Math.random() * 120, arc: 5 * K, spin: Math.PI * 2 })
             .then(() => scene.remove(c))
         })
       })
-      for (let i = 0; i < 160; i++) {
+      for (let i = 0; i < 150; i++) {
         const m = new THREE.Mesh(confettiGeo, confettiMats[i % confettiMats.length])
-        m.scale.setScalar(S)
-        m.position.set(pot.x + (Math.random() - 0.5) * 40 * S, TOP + 10 * S, pot.z + (Math.random() - 0.5) * 40 * S)
+        m.scale.setScalar(K)
+        m.position.set(pot.x + (Math.random() - 0.5) * 2 * K, K, pot.z + (Math.random() - 0.5) * 2 * K)
         m.userData = {
-          v: new THREE.Vector3((Math.random() - 0.5) * 700, 380 + Math.random() * 420, (Math.random() - 0.5) * 500).multiplyScalar(S),
-          spin: new THREE.Vector3(Math.random() * 9, Math.random() * 9, Math.random() * 9),
-          life: 1.8 + Math.random(),
+          v: new THREE.Vector3((Math.random() - 0.5) * 14, 10 + Math.random() * 10, (Math.random() - 0.5) * 10).multiplyScalar(K),
+          spin: new THREE.Vector3(Math.random() * 8, Math.random() * 8, Math.random() * 8),
+          life: 2.4 + Math.random(),
         }
         scene.add(m)
         confetti.push(m)
@@ -356,7 +377,7 @@ export function createTable(canvas) {
     for (let i = confetti.length - 1; i >= 0; i--) {
       const m = confetti[i]
       const u = m.userData
-      u.v.y -= 900 * S * dt
+      u.v.y -= 22 * K * dt
       m.position.addScaledVector(u.v, dt)
       m.rotation.x += u.spin.x * dt
       m.rotation.y += u.spin.y * dt
@@ -369,19 +390,21 @@ export function createTable(canvas) {
     }
     floaters.forEach((c, i) => {
       const base = c.userData.base
-      if (!base) return
-      c.position.set(base.x, base.y + Math.sin(t * 1.3 + i) * 12 * S, base.z)
+      c.position.set(base.x, base.y + Math.sin(t * 1.3 + i) * 0.5 * K, base.z)
       c.rotation.x = 0.6 + Math.sin(t * 0.8 + i) * 0.3
       c.rotation.z = t * 0.7 + i
     })
+    clouds.forEach((g, i) => {
+      g.position.x += dt * (0.35 + i * 0.05) * K
+      if (g.position.x > 40 * K) g.position.x = -40 * K
+    })
     if (clock < shakeUntil) {
-      camera.position.set(camBase.x + (Math.random() - 0.5) * 0.4, camBase.y, camBase.z + (Math.random() - 0.5) * 0.4)
+      camera.position.set(camBase.x + (Math.random() - 0.5) * 0.5, camBase.y + (Math.random() - 0.5) * 0.5, camBase.z)
     } else {
       camera.position.copy(camBase)
     }
   }
 
-  resize()
   return fx
 }
 

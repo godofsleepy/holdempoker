@@ -18,6 +18,35 @@ let turnDeadline = 0
 let potTimer = null
 let fx = null
 let logo = null
+let layoutName = ''
+const seatPos = {}
+
+// The game screen is a fixed-size stage scaled to fit the window, laid out like the design.
+// "wide" is the design's 1280×720 table; "tall" is the same idea for phones held upright.
+const LAYOUTS = {
+  wide: {
+    W: 1280, H: 720,
+    island: { left: 157, right: 1123, top: 83, bottom: 600 }, // where the design's 3D table sits
+    pot: [640, 236], // chip stacks, just above the POT label
+    potLabel: [640, 284],
+    seats: { cx: 640, cy: 330, rx: 490, ry: 220, from: 180, to: 360, minY: 120 },
+    // bet chips sit part of the way from a player towards the pot
+    betSpot: (x, y) => [x + (640 - x) * 0.42, y + (284 - y) * 0.42],
+    myCards: [460, 620],
+    me: [105, 570],
+  },
+  tall: {
+    W: 480, H: 1040,
+    island: { left: 20, right: 460, top: 126, bottom: 668 },
+    pot: [240, 346],
+    potLabel: [240, 380],
+    seats: { cx: 240, cy: 400, rx: 180, ry: 266, from: 200, to: 340, minY: 134 },
+    // beside side seats, under the name of seats at the top
+    betSpot: (x, y) => (Math.abs(x - 240) > 120 ? [x + (x < 240 ? 76 : -76), y + 40] : [x + (240 - x) * 0.35, y + 128]),
+    myCards: [228, 826],
+    me: [48, 794],
+  },
+}
 
 // ---------- look ----------
 
@@ -97,6 +126,7 @@ function enterTable(data) {
   document.body.classList.add('ingame')
   logo?.stop()
   fx?.start()
+  fitStage()
   view = null
   render(data)
   pollTimer = setTimeout(poll, 1500)
@@ -115,33 +145,43 @@ function exitTable(msg) {
   if (msg) toast(msg)
 }
 
-// Screen point (viewport px) at the centre of an element, for the 3D effects.
-function centerOf(el) {
-  if (!el) return null
-  const r = el.getBoundingClientRect()
-  return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
-}
+const layout = () => LAYOUTS[layoutName] || LAYOUTS.wide
+
+// Stage point for a player, used to aim the 3D effects.
 function seatPoint(i) {
-  if (view && i === view.me) return centerOf($('#mycards .card')) || centerOf($('#me .avatar'))
-  return centerOf($(`.seat[data-i="${i}"] .avatar`))
-}
-function potPoint() {
-  const r = $('#pot').getBoundingClientRect()
-  return { x: r.left + r.width / 2, y: r.top - 16 }
+  if (view && i === view.me) return view.players[i].inHand ? layout().myCards : layout().me
+  return seatPos[i]
 }
 const potChips = pot => Math.min(36, Math.ceil(Math.sqrt(pot / 20) * 3))
 
-function fitTable() {
-  if (!fx || $('#game').hidden) return
-  fx.resize()
-  fx.fit($('#stage').getBoundingClientRect())
-}
 function syncPot(delay) {
   clearTimeout(potTimer)
   potTimer = setTimeout(() => {
     const h = view?.hand
-    if (fx && h && !h.done) fx.setPot(potPoint(), potChips(h.pot))
+    if (fx && h && !h.done) fx.setPot(potChips(h.pot))
   }, delay)
+}
+
+// Pick wide or tall, scale the stage to the window, and size the 3D table to match.
+function fitStage() {
+  const name = innerWidth / innerHeight < 0.8 ? 'tall' : 'wide'
+  const L = LAYOUTS[name]
+  const scale = Math.min(innerWidth / L.W, innerHeight / L.H)
+  const stage = $('#stage')
+  stage.classList.toggle('tall', name === 'tall')
+  stage.classList.toggle('wide', name === 'wide')
+  stage.style.setProperty('--s', scale)
+  const changed = name !== layoutName
+  layoutName = name
+  if (fx) {
+    const margin = [Math.max(0, (innerWidth / scale - L.W) / 2), Math.max(0, (innerHeight / scale - L.H) / 2)]
+    fx.setLayout({ ...L, margin, pixelRatio: Math.min(2.5, (devicePixelRatio || 1) * scale) })
+    syncPot(0)
+  }
+  if (changed && view) {
+    $('#seats').dataset.key = ''
+    renderSeats(view)
+  }
 }
 
 // ---------- rendering ----------
@@ -160,18 +200,17 @@ function render(v) {
     $('#ticker').dataset.text = last
     $('#ticker').innerHTML = last ? `<span>${esc(last)}</span>` : ''
   }
-  fitTable()
   effects(prev, v)
 }
 
-function seatLayout(count) {
-  const narrow = matchMedia('(max-width: 760px)').matches
-  const rx = narrow ? 37 : 45
-  const ry = narrow ? 40 : 40
-  return k => {
-    const a = (90 + ((k + 1) * 360) / (count + 1)) * (Math.PI / 180)
-    return { x: 50 + rx * Math.cos(a), y: 50 + ry * Math.sin(a), cos: Math.cos(a), sin: Math.sin(a) }
-  }
+// Other players sit around the far side of the table, from left to right.
+function seatPlaces(count) {
+  const { cx, cy, rx, ry, from, to, minY } = layout().seats
+  return Array.from({ length: count }, (_, k) => {
+    const deg = count <= 3 ? from + ((k + 1) * (to - from)) / (count + 1) : from + (k * (to - from)) / (count - 1)
+    const a = (deg * Math.PI) / 180
+    return [Math.round(cx + rx * Math.cos(a)), Math.round(Math.max(minY, cy + ry * Math.sin(a)))]
+  })
 }
 
 function renderSeats(v) {
@@ -180,8 +219,9 @@ function renderSeats(v) {
   const n = v.players.length
   const others = []
   for (let k = 1; k < n; k++) others.push((v.me + k) % n)
-  const place = seatLayout(others.length)
+  const places = seatPlaces(others.length)
   const box = $('#seats')
+  let bets = ''
   const key = others.join(',') + ':' + n
   if (box.dataset.key !== key) {
     box.dataset.key = key
@@ -190,9 +230,16 @@ function renderSeats(v) {
   others.forEach((i, k) => {
     const p = v.players[i]
     const el = box.querySelector(`[data-i="${i}"]`)
-    const pos = place(k)
-    el.style.left = pos.x + '%'
-    el.style.top = pos.y + '%'
+    const [x, y] = places[k]
+    seatPos[i] = [x, y]
+    el.style.left = x + 'px'
+    el.style.top = y + 'px'
+    el.classList.toggle('cards-left', x > layout().seats.cx)
+    el.classList.toggle('cards-right', x <= layout().seats.cx)
+    if (p.bet) {
+      const [bx, by] = layout().betSpot(x, y)
+      bets += `<div class="betchip" style="left:${Math.round(bx)}px;top:${Math.round(by)}px"><span class="chipicon"></span>${p.bet}</div>`
+    }
     el.classList.toggle('out', p.folded || p.sitOut || p.left || (active && !p.inHand))
     const turn = active && h.toAct === i
     const av = AVATARS[p.avatar] || AVATARS[0]
@@ -203,7 +250,6 @@ function renderSeats(v) {
         ${h && i === v.button ? '<span class="dealer" title="Dealer">D</span>' : ''}
         ${turn ? ringHtml : ''}
         ${showCards ? `<div class="hole ${p.cards[0] ? 'up' : ''}">${p.cards.map(c => cardHtml(c)).join('')}</div>` : ''}
-        ${p.bet ? `<div class="betchip" style="--dx:${pos.cos.toFixed(3)};--dy:${pos.sin.toFixed(3)}"><span class="chipicon"></span>${p.bet}</div>` : ''}
       </div>
       <div class="plate"><b>${esc(p.name)}</b><span>${p.chips.toLocaleString('en-US')}</span></div>
       ${ribbon ? `<span class="ribbon" style="--k:${ribbonColor(ribbon)}">${esc(ribbon)}</span>` : ''}
@@ -214,6 +260,10 @@ function renderSeats(v) {
       startRing(el.querySelector('.ring'), h)
     }
   })
+  if ($('#bets').dataset.html !== bets) {
+    $('#bets').dataset.html = bets
+    $('#bets').innerHTML = bets
+  }
 }
 
 // The ring empties over the turn; start it part-way through if the turn began earlier.
@@ -226,6 +276,7 @@ function startRing(ring, h) {
 
 function renderCenter(v, prev) {
   const h = v.hand
+  $('#stage').classList.toggle('done', !!h?.done)
   $('#pot').textContent = `POT ${(h ? h.pot : 0).toLocaleString('en-US')}`
   const board = $('#board')
   const boardKey = h ? `${h.no}:${h.board.join(',')}` : ''
@@ -398,15 +449,16 @@ function effects(prev, v) {
     const q = prev.players[i]
     if (!q || q.name !== p.name) return
     const paid = q.chips - p.chips
-    if (paid > 0) {
+    const point = seatPoint(i)
+    if (paid > 0 && point) {
       tossed = true
       const allIn = p.allIn && !q.allIn
-      fx?.toss(seatPoint(i), Math.min(14, 2 + Math.round(paid / v.bigBlind)))
+      fx?.toss(point, Math.min(14, 2 + Math.round(paid / v.bigBlind)))
       if (allIn) fx?.shake()
       sfx.play(allIn ? 'allin' : 'chips')
     }
-    if (p.folded && !q.folded) {
-      fx?.fold(seatPoint(i))
+    if (p.folded && !q.folded && point) {
+      fx?.fold(point)
       sfx.play('fold')
     }
   })
@@ -606,30 +658,21 @@ soundBtn.onclick = () => {
 }
 showSound()
 
+let resizeTimer = null
 addEventListener('resize', () => {
-  fitTable()
   logo?.resize()
-  if (view) {
-    $('#seats').dataset.key = ''
-    renderSeats(view)
-    syncPot(0)
-  }
+  clearTimeout(resizeTimer)
+  resizeTimer = setTimeout(fitStage, 120)
 })
-addEventListener('scroll', () => {
-  fitTable()
-  syncPot(0)
-}, { passive: true })
+fitStage()
 
 // 3D is optional: the game still works if WebGL or the three.js file is unavailable.
 import('./scene.js')
   .then(scene => {
     try {
       fx = scene.createTable($('#table3d'))
-      if (!$('#game').hidden) {
-        fx.start()
-        fitTable()
-        syncPot(0)
-      }
+      fitStage()
+      if (!$('#game').hidden) fx.start()
     } catch {
       document.body.classList.add('no3d')
     }
