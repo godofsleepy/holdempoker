@@ -19,6 +19,9 @@ let potTimer = null
 let fx = null
 let logo = null
 let layoutName = ''
+let lastEmote = 0 // newest emoji/chat bubble already shown
+const EMOJIS = ['😂', '😎', '😡', '😭', '🤔', '😱', '🥳', '😴', '🤑', '🙈', '🔥', '👏', '💩', '🤡', '🍀', '🐟']
+const PHRASES = ['Nice hand!', 'Good luck!', 'Hurry up!', 'Wow!', 'Unlucky!', 'GG', 'Oops!', 'Thanks!', 'I’m bluffing… or am I?', 'Read ’em and weep!']
 const seatPos = {}
 
 // The game screen is a fixed-size stage scaled to fit the window, laid out like the design.
@@ -27,11 +30,11 @@ const LAYOUTS = {
   wide: {
     W: 1280, H: 720,
     island: { left: 157, right: 1123, top: 83, bottom: 600 }, // where the design's 3D table sits
-    pot: [640, 236], // chip stacks, just above the POT label
+    pot: [778, 290], // chip stacks, beside the POT label
     potLabel: [640, 284],
     seats: { cx: 640, cy: 330, rx: 490, ry: 220, from: 180, to: 360, minY: 120 },
     // bet chips sit part of the way from a player towards the pot
-    betSpot: (x, y) => [x + (640 - x) * 0.42, y + (284 - y) * 0.42],
+    betSpot: (x, y) => (Math.abs(x - 640) < 150 ? [x - 128, y + 34] : [x + (640 - x) * 0.42, y + (284 - y) * 0.42]),
     myCards: [460, 620],
     me: [105, 570],
   },
@@ -44,7 +47,7 @@ const LAYOUTS = {
     // beside side seats, under the name of seats at the top
     betSpot: (x, y) => (Math.abs(x - 240) > 120 ? [x + (x < 240 ? 76 : -76), y + 40] : [x + (240 - x) * 0.35, y + 128]),
     myCards: [228, 826],
-    me: [48, 794],
+    me: [70, 776],
   },
 }
 
@@ -118,6 +121,7 @@ async function poll() {
 // ---------- screens ----------
 
 function enterTable(data) {
+  lastEmote = 0
   code = data.code
   history.replaceState(null, '', `?room=${code}`)
   $('#lobby').hidden = true
@@ -195,6 +199,7 @@ function render(v) {
   renderMe(v, prev)
   renderControls(v)
   renderGuideHighlight()
+  renderEmotes(v)
   const last = v.log[v.log.length - 1] || ''
   if ($('#ticker').dataset.text !== last) {
     $('#ticker').dataset.text = last
@@ -426,6 +431,37 @@ function updateTimer() {
 }
 setInterval(updateTimer, 250)
 
+// Pop new emoji/chat bubbles over the sender's avatar.
+function renderEmotes(v) {
+  for (const e of v.emotes || []) {
+    if (e.no <= lastEmote) continue
+    lastEmote = e.no
+    const mine = e.seat === v.me
+    const pos = mine ? layout().me : seatPos[e.seat]
+    if (!pos) continue
+    const avatar = layoutName === 'tall' ? (mine ? 64 : 70) : mine ? 104 : 92
+    const el = document.createElement('div')
+    el.className = 'emote' + (EMOJIS.includes(e.text) ? ' big' : '')
+    el.textContent = e.text
+    el.style.left = pos[0] + 'px'
+    el.style.top = pos[1] - avatar / 2 - 16 + 'px'
+    $('#emotes').append(el)
+    setTimeout(() => el.remove(), 3600)
+    sfx.play('pop')
+  }
+}
+
+function toggleEmotes(open = $('#emotePanel').hidden) {
+  $('#emotePanel').hidden = !open
+  $('#emoteBtn').setAttribute('aria-expanded', String(open))
+}
+
+async function sendEmote(text) {
+  toggleEmotes(false)
+  const data = await send({ op: 'emote', text })
+  if (data) render(data)
+}
+
 // ---------- animation and sound triggers ----------
 
 function effects(prev, v) {
@@ -571,12 +607,22 @@ document.addEventListener('pointerdown', sfx.unlock, { passive: true })
 document.addEventListener('keydown', e => {
   sfx.unlock()
   if (e.key === 'Escape' && !$('#guide').hidden) closeGuide()
+  if (e.key === 'Escape' && !$('#emotePanel').hidden) toggleEmotes(false)
 })
 
 document.addEventListener('click', e => {
   const btn = e.target.closest('button')
   if (!btn) return
   if (btn.matches('[data-guide]')) return openGuide()
+  if (btn.id === 'emoteBtn') return toggleEmotes()
+  if (btn.dataset.tabEmote) {
+    const chat = btn.dataset.tabEmote === 'chat'
+    document.querySelectorAll('[data-tab-emote]').forEach(b => b.setAttribute('aria-selected', String(b === btn)))
+    $('#emoteGrid').hidden = chat
+    $('#emoteChat').hidden = !chat
+    return
+  }
+  if (btn.dataset.emote || btn.dataset.phrase) return sendEmote(btn.dataset.emote || btn.dataset.phrase)
   if (btn.dataset.tab) {
     guideTab = btn.dataset.tab
     return renderGuide()
@@ -647,6 +693,19 @@ $('#invite').onclick = async () => {
     prompt('Share this link', link)
   }
 }
+$('#emoteGrid').innerHTML = EMOJIS.map(e => `<button data-emote="${e}" aria-label="Send ${e}">${e}</button>`).join('')
+$('#phrases').innerHTML = PHRASES.map(p => `<button data-phrase="${esc(p)}">${esc(p)}</button>`).join('')
+$('#chatForm').onsubmit = e => {
+  e.preventDefault()
+  const text = $('#chatInput').value.trim()
+  $('#chatInput').value = ''
+  if (text) sendEmote(text)
+}
+// Close the emoji panel when tapping anywhere else.
+document.addEventListener('pointerdown', e => {
+  if (!$('#emotePanel').hidden && !e.target.closest('#emotePanel, #emoteBtn')) toggleEmotes(false)
+})
+
 const soundBtn = $('#sound')
 const showSound = () => {
   soundBtn.classList.toggle('muted', sfx.isMuted())

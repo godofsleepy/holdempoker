@@ -8,6 +8,7 @@ Playful multiplayer Texas Hold'em for 2–8 friends. Create a table, share the l
 - Beginner friendly: "You have…" hand helper with a strength meter, labelled buttons, and a hand guide
 - 3D floating-island table (three.js): cards deal out, chips fly into the pot, confetti for the winner
 - Sound effects, with a mute button
+- Emoji and quick chat: pop a 😂 or "Nice hand!" over your avatar for everyone
 - Works on phones
 
 ## Run locally

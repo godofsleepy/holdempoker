@@ -80,6 +80,7 @@ export function play(name) {
     win: () => [523, 659, 784, 1047].forEach((f, i) => tone(now + i * 0.1, 0.4, f, f * 1.01, 0.28, 'triangle')),
     lose: () => [392, 330].forEach((f, i) => tone(now + i * 0.14, 0.3, f, f * 0.98, 0.2, 'triangle')),
     click: () => tone(now, 0.05, 900, 1300, 0.18),
+    pop: () => { tone(now, 0.08, 500, 1000, 0.25); tone(now + 0.06, 0.1, 900, 1400, 0.18) },
   }
   sounds[name]?.()
 }

@@ -57,6 +57,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M10 8.5a2 2 0 1 1 2.5 1.9c-.5.2-.5.6-.5 1.1"/><path d="M12 14.5h.01"/></svg>
         <span>Hand guide</span>
       </button>
+      <button class="hudbtn round" id="emoteBtn" aria-label="Emoji and chat" aria-expanded="false" aria-controls="emotePanel">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 20.5l1.5-5A8.5 8.5 0 1 1 21 11.5z"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9.5 13.5a3.5 3.5 0 0 0 5 0"/></svg>
+      </button>
       <button class="hudbtn round" id="invite" aria-label="Copy invite link">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>
       </button>
@@ -81,6 +84,21 @@
     <div class="me" id="me"></div>
     <div class="actions" id="actions"></div>
     <div class="banner" id="banner" hidden></div>
+    <div id="emotes" aria-live="polite"></div>
+    <div class="emote-panel" id="emotePanel" hidden>
+      <div class="emote-tabs" role="tablist">
+        <button role="tab" data-tab-emote="emoji" aria-selected="true" aria-label="Emoji"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M8.5 14a4.5 4.5 0 0 0 7 0"/></svg></button>
+        <button role="tab" data-tab-emote="chat" aria-selected="false" aria-label="Quick chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8"/><path d="M8 12h5"/></svg></button>
+      </div>
+      <div class="emote-grid" id="emoteGrid"></div>
+      <div class="emote-chat" id="emoteChat" hidden>
+        <div class="phrases" id="phrases"></div>
+        <form class="chatform" id="chatForm">
+          <input id="chatInput" maxlength="40" autocomplete="off" placeholder="Say something…" aria-label="Chat message">
+          <button type="submit">SEND</button>
+        </form>
+      </div>
+    </div>
   </div>
 </main>
 

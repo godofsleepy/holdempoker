@@ -196,7 +196,7 @@ body.no3d .tall .felt { left: 5%; right: 5%; top: 11%; bottom: 35%; }
 .tablechip b { font-weight: 400; }
 .chipicon { flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--yellow); border: 4px dashed #fff; }
 .blinds { background: #fff; border-radius: 999px; padding: 8px 16px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 0 rgba(20, 37, 74, .25); white-space: nowrap; }
-.ticker { position: absolute; left: 50%; top: 27px; transform: translateX(-50%); max-width: 440px; text-align: center; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticker { position: absolute; left: 24px; top: 86px; max-width: 300px; font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ticker:not(:empty) span { display: inline-block; background: rgba(255, 255, 255, .9); border-radius: 999px; padding: 4px 14px; animation: pop .35s ease both; }
 .hudbtn {
   height: 50px;
@@ -222,7 +222,8 @@ body.no3d .tall .felt { left: 5%; right: 5%; top: 11%; bottom: 35%; }
 .tall .hud-right { right: 16px; }
 .tall .blinds, .tall .tablelabel, .tall .guidebtn span { display: none; }
 .tall .hudbtn { width: 48px; height: 48px; padding: 0; justify-content: center; }
-.tall .ticker { top: 78px; font-size: 14px; }
+.tall .ticker { left: 50%; top: 560px; max-width: 400px; transform: translateX(-50%); text-align: center; font-size: 14px; }
+.tall.done .ticker { visibility: hidden; }
 
 /* ---------- seats (positioned by app.js; the avatar sits on the table rim) ---------- */
 .seat {
@@ -394,13 +395,78 @@ body.no3d .tall .felt { left: 5%; right: 5%; top: 11%; bottom: 35%; }
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .6);
 }
 
+/* ---------- emoji and quick chat ---------- */
+.emote-panel {
+  position: absolute;
+  right: 24px;
+  top: 84px;
+  z-index: 6;
+  width: 320px;
+  padding: 10px;
+  background: #1B2A4E;
+  border: 3px solid #fff;
+  border-radius: 22px;
+  box-shadow: 0 8px 0 rgba(20, 37, 74, .35);
+  transform-origin: 85% 0;
+  animation: pop .25s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.tall .emote-panel { right: 16px; top: 74px; width: 300px; }
+.emote-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.emote-tabs button { flex: 1; height: 40px; border: 0; border-radius: 12px; background: rgba(255, 255, 255, .1); display: grid; place-items: center; }
+.emote-tabs button[aria-selected="true"] { background: rgba(255, 255, 255, .28); }
+.emote-tabs svg { width: 24px; height: 24px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.emote-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.emote-grid button { height: 64px; border: 0; border-radius: 14px; background: transparent; color: #fff; font-size: 40px; line-height: 1; transition: transform .12s ease, background .12s ease; }
+.emote-grid button:hover { transform: scale(1.15); background: rgba(255, 255, 255, .1); }
+.emote-chat { display: flex; flex-direction: column; gap: 8px; }
+.phrases { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.phrases button { min-height: 40px; padding: 6px 8px; border: 0; border-radius: 12px; background: #fff; color: var(--ink); font-weight: 600; font-size: 14px; line-height: 1.2; transition: transform .12s ease; }
+.phrases button:hover { transform: translateY(-2px); }
+.chatform { display: flex; gap: 6px; }
+.chatform input { flex: 1; min-width: 0; height: 44px; border: 0; border-radius: 12px; padding: 0 12px; font-size: 15px; }
+.chatform input:focus { outline: 3px solid var(--yellow); }
+.chatform button { height: 44px; padding: 0 14px; border: 0; border-radius: 12px; background: var(--yellow); color: var(--ink); font: 400 17px var(--display); letter-spacing: .5px; }
+.emote {
+  position: absolute;
+  z-index: 5;
+  max-width: 220px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 0 4px 0 rgba(20, 37, 74, .3);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  animation: emoteIn .45s cubic-bezier(.2, 1.6, .4, 1) both, emoteOut .4s ease-in 3.1s forwards;
+}
+.emote::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -11px;
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-right: 3px solid var(--ink);
+  border-bottom: 3px solid var(--ink);
+  transform: translateX(-50%) rotate(45deg);
+}
+.emote.big { padding: 6px 10px; border-radius: 22px; font-size: 48px; line-height: 1; }
+@keyframes emoteIn { from { transform: translate(-50%, -60%) scale(.2); opacity: 0; } }
+@keyframes emoteOut { to { transform: translate(-50%, -150%); opacity: 0; } }
+
 /* ---------- my area ---------- */
 .me { position: absolute; left: 30px; top: 512px; width: 150px; display: flex; flex-direction: column; align-items: center; gap: 6px; --av: 104px; }
 .me .avatar { border-width: 5px; }
 .me .plate { padding: 3px 16px; }
 .me .plate b { font-size: 17px; }
 .me .plate span { font-size: 14px; }
-.tall .me { left: 12px; top: 756px; width: 116px; --av: 72px; }
+.tall .me { left: 12px; top: 744px; width: 116px; --av: 64px; }
 .mycards { position: absolute; left: 330px; top: 540px; display: flex; align-items: flex-end; --w: 130px; }
 .mycards .card { --r: -9deg; transform: rotate(var(--r)); transform-origin: 50% 100%; box-shadow: 0 8px 0 rgba(20, 37, 74, .35), inset 0 0 0 1.5px #DDE3EE; }
 .mycards .card + .card { --r: 8deg; margin-left: -18px; }
@@ -451,15 +517,15 @@ body.no3d .tall .felt { left: 5%; right: 5%; top: 11%; bottom: 35%; }
 .col small { background: var(--ink); color: #fff; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .act { height: 66px; min-width: 110px; padding: 0 20px; font-size: 25px; white-space: nowrap; }
 .allin {
-  width: 124px;
-  height: 124px;
-  margin-top: -36px;
+  width: 108px;
+  height: 108px;
+  margin-top: -14px;
   border-radius: 50%;
   border: 5px solid #fff;
   background: radial-gradient(circle at 35% 30%, #FF9A4D, #E8413C 58%, #B3261E);
   --shade: #8E1C17;
   color: var(--yellow);
-  font: 400 32px/.95 var(--display);
+  font: 400 29px/.95 var(--display);
   letter-spacing: 1px;
   -webkit-text-stroke: 2px var(--ink);
   paint-order: stroke fill;
@@ -477,7 +543,7 @@ body.no3d .tall .felt { left: 5%; right: 5%; top: 11%; bottom: 35%; }
 .tall .stepper input { width: 58px; }
 .tall .btnrow { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; }
 .tall .act { width: 100%; min-width: 0; height: 58px; padding: 0 4px; font-size: 19px; letter-spacing: 0; }
-.tall .allin { width: 86px; height: 86px; margin-top: -14px; font-size: 22px; border-width: 4px; }
+.tall .allin { width: 66px; height: 66px; margin-top: 0; font-size: 18px; border-width: 4px; -webkit-text-stroke-width: 1.5px; }
 .tall .col small { font-size: 11px; padding: 2px 6px; white-space: normal; text-align: center; line-height: 1.15; }
 .tall .status { margin-top: 20px; }
 .tall .status p { flex: 1; font-size: 16px; padding: 10px 16px; border-radius: 18px; }

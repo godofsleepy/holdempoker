@@ -43,6 +43,7 @@ export default async function handler(req, res) {
         else if (op === 'back') poker.setSitOut(r, pid, false)
         else if (op === 'rebuy') poker.rebuy(r, pid)
         else if (op === 'leave') poker.leave(r, pid)
+        else if (op === 'emote') poker.emote(r, pid, req.body.text, now)
         else throw new Error('Unknown op')
         return true
       })

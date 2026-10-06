@@ -143,3 +143,15 @@ test('beginner info: hand strength, action labels, winner seat', () => {
   poker.act(room, third.id, 'fold', 0, 0)
   assert.equal(room.hand.results[0].seat, room.players.indexOf(first))
 })
+
+test('emotes: shown to everyone briefly, rate limited, never leak player ids', () => {
+  const room = table(2)
+  poker.emote(room, 'player-1', '😂', 1000)
+  assert.throws(() => poker.emote(room, 'player-1', 'again', 1500), /Slow down/)
+  poker.emote(room, 'player-0', '  Nice hand!  ' + 'x'.repeat(60), 1600)
+  const v = poker.view(room, 'player-0', 2000)
+  assert.deepEqual(v.emotes.map(e => [e.seat, e.text.length]), [[1, 2], [0, 40]])
+  assert.ok(!JSON.stringify(v.emotes).includes('player-'))
+  assert.equal(poker.view(room, 'player-0', 1000 + poker.EMOTE_MS).emotes.length, 1)
+  assert.throws(() => poker.emote(room, 'player-0', '   ', 9000), /Type a message/)
+})
