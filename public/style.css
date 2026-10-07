@@ -68,7 +68,8 @@ button { cursor: pointer; }
   gap: 32px;
   align-items: center;
 }
-.hero, .panel { position: relative; z-index: 1; }
+.hero, .side { position: relative; z-index: 1; }
+.side { display: flex; flex-direction: column; gap: 28px; }
 .hero { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
 #logo3d { width: min(100%, 520px); aspect-ratio: 4 / 3; }
 .title {
@@ -143,7 +144,25 @@ button { cursor: pointer; }
 .linkbtn { align-self: center; background: none; border: 0; color: var(--blue); font-weight: 600; font-size: 16px; text-decoration: underline; text-underline-offset: 3px; }
 .linkbtn:hover { color: var(--ink); }
 .hill { position: fixed; left: -10vw; right: -10vw; bottom: -42vh; height: 70vh; border-radius: 50%; background: #43C463; border-top: 10px solid #2C9E49; }
+/* leaderboard */
+.leaders { gap: 10px; animation-delay: .3s; }
+.leaderlist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.leaderlist li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 14px; background: #F4F7FC; }
+.leaderlist li.me { background: #FFF3C4; box-shadow: inset 0 0 0 3px var(--yellow); }
+.leaderlist li.empty { justify-content: center; color: var(--muted); font-weight: 600; }
+.leaderlist .rank { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--slate); color: #fff; font: 400 16px/1 var(--display); }
+.leaderlist li:nth-child(1) .rank { background: var(--yellow); color: var(--ink); }
+.leaderlist li:nth-child(2) .rank { background: #A9B6CC; color: var(--ink); }
+.leaderlist li:nth-child(3) .rank { background: var(--orange); }
+.leaderlist .pic { flex: none; width: 34px; height: 34px; border-radius: 10px; background: var(--bg); display: grid; place-items: center; }
+.leaderlist .pic svg { width: 80%; height: 80%; }
+.leaderlist .who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.leaderlist .won { text-align: right; font: 400 18px/1 var(--display); }
+.leaderlist .won small { display: block; font: 500 12px/1.3 var(--body); color: var(--muted); }
+.mystats { margin: 0; text-align: center; color: var(--muted); font-size: 14px; font-weight: 600; }
+.mystats:empty { display: none; }
 @media (max-width: 900px) {
+  .side { gap: 20px; }
   .lobby { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 16px 16px 40px; }
   #logo3d { width: min(100%, 340px); }
   .panel { padding: 20px 18px; }
