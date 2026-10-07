@@ -9,6 +9,7 @@ Playful multiplayer Texas Hold'em for 2–8 friends. Create a table, share the l
 - 3D floating-island table (three.js): cards deal out, chips fly into the pot, confetti for the winner
 - Sound effects, with a mute button
 - Emoji and quick chat: pop a 😂 or "Nice hand!" over your avatar for everyone
+- Leaderboard on the home screen: lifetime chips won, no login (each player is a random id kept on their device)
 - Works on phones
 
 ## Run locally
@@ -22,7 +23,8 @@ No dependencies to install.
 
 ## Deploy to Vercel
 
-1. Create a free Supabase project and run `supabase.sql` in its SQL editor.
+1. Create a free Supabase project and run `supabase.sql` in its SQL editor
+   (already set up before the leaderboard? run only its leaderboard part).
 2. Import this repo in Vercel and add two environment variables:
    - `SUPABASE_URL` — e.g. `https://xxxx.supabase.co`
    - `SUPABASE_KEY` — the project's publishable (anon) key

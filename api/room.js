@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto'
 import * as poker from '../lib/poker.js'
-import { createRoom, updateRoom } from '../lib/store.js'
+import { createRoom, updateRoom, recordWin, topPlayers, getPlayer } from '../lib/store.js'
 
 const cleanName = name => String(name || '').trim().slice(0, 16) || 'Player'
 const cleanCode = code => String(code || '').trim().toUpperCase()
@@ -21,11 +21,42 @@ async function newTable(pid, name, avatar) {
   throw new Error('Could not create a table, try again')
 }
 
+// Runs `change` on the room and, if that just finished a hand, adds each winner's profit to the leaderboard.
+async function update(code, change) {
+  let finished = false
+  const room = await updateRoom(code, r => {
+    const doneHand = r.hand?.done ? r.handNo : null
+    const changed = change(r)
+    finished = Boolean(r.hand?.done) && r.handNo !== doneHand
+    return changed
+  })
+  if (finished) {
+    for (const { seat, amount } of room.hand.results) {
+      const p = room.players[seat]
+      const profit = amount - p.total
+      if (profit <= 0) continue
+      try {
+        await recordWin(p.id, p.name, p.avatar, profit)
+      } catch (e) {
+        console.error(e) // the game goes on even if the leaderboard can't be saved
+      }
+    }
+  }
+  return room
+}
+
+async function leaderboard(pid) {
+  const [top, mine] = await Promise.all([topPlayers(10), pid ? getPlayer(pid) : null])
+  const row = p => ({ name: p.name, avatar: p.avatar, chips: Number(p.chips_won), hands: p.hands_won, me: p.id === pid })
+  return { top: top.map(row), me: mine && row(mine) } // device ids stay on the server
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const pid = String(req.query.pid || '')
-      const room = await updateRoom(cleanCode(req.query.code), r => poker.tick(r, Date.now()))
+      if (req.query.leaderboard) return res.status(200).json(await leaderboard(pid))
+      const room = await update(cleanCode(req.query.code), r => poker.tick(r, Date.now()))
       return res.status(200).json(poker.view(room, pid, Date.now()))
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -35,7 +66,7 @@ export default async function handler(req, res) {
     const now = Date.now()
     const room = op === 'create'
       ? await newTable(pid, cleanName(name), cleanAvatar(avatar))
-      : await updateRoom(cleanCode(code), r => {
+      : await update(cleanCode(code), r => {
         if (op === 'join') poker.addPlayer(r, pid, cleanName(name), cleanAvatar(avatar))
         else if (op === 'start') poker.startHand(r, now)
         else if (op === 'act') poker.act(r, pid, action, amount, now)

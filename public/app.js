@@ -146,7 +146,37 @@ function exitTable(msg) {
   document.body.classList.remove('ingame')
   fx?.stop()
   logo?.start()
+  loadLeaders()
   if (msg) toast(msg)
+}
+
+// ---------- leaderboard (players are their device id, so no login needed) ----------
+
+async function loadLeaders() {
+  let data
+  try {
+    const res = await fetch(`/api/room?leaderboard=1&pid=${encodeURIComponent(pid)}`)
+    data = await res.json()
+    if (!res.ok) throw new Error(data.error)
+  } catch {
+    $('#leaders').innerHTML = '<li class="empty">Leaderboard is unavailable right now</li>'
+    return
+  }
+  const fmt = n => n.toLocaleString('en-US')
+  $('#leaders').innerHTML = data.top.length
+    ? data.top.map((p, i) => {
+      const a = AVATARS[p.avatar] || AVATARS[0]
+      return `<li class="${p.me ? 'me' : ''}">
+        <span class="rank">${i + 1}</span>
+        <span class="pic" style="--bg:${a.bg}">${a.svg}</span>
+        <span class="who">${esc(p.name)}${p.me ? ' (you)' : ''}</span>
+        <span class="won">${fmt(p.chips)}<small>chips · ${p.hands} ${p.hands === 1 ? 'win' : 'wins'}</small></span>
+      </li>`
+    }).join('')
+    : '<li class="empty">No winners yet. Win a hand to be first!</li>'
+  $('#myStats').textContent = data.me
+    ? data.top.some(p => p.me) ? '' : `You: ${fmt(data.me.chips)} chips won in ${data.me.hands} ${data.me.hands === 1 ? 'hand' : 'hands'}`
+    : 'Win a hand to get on the board. Your score is saved on this device.'
 }
 
 const layout = () => LAYOUTS[layoutName] || LAYOUTS.wide
@@ -742,6 +772,7 @@ import('./scene.js')
   })
   .catch(() => document.body.classList.add('no3d'))
 
+loadLeaders()
 $('#name').value = store.get('name') || ''
 $('#code').value = code
 if (code && store.get('name')) join('join')
