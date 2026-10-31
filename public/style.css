@@ -622,6 +622,24 @@ body.no3d .tall .felt { left: 5%; right: 5%; top: 11%; bottom: 35%; }
 .btnhelp p { margin: 0; font-size: 14px; line-height: 1.35; }
 .btnhelp p + p { font-size: 13px; color: #3A4A6B; margin-top: 3px; }
 
+/* ---------- bet history drawer (reuses the guide drawer) ---------- */
+.handtabs { overflow-x: auto; scrollbar-width: none; }
+.handtabs button { flex: none; padding: 0 14px; white-space: nowrap; }
+.hboard { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 400 17px var(--display); }
+.hstreet { margin: 10px 0 0; display: flex; justify-content: space-between; align-items: baseline; font: 400 18px/1.2 var(--display); }
+.hstreet span { font: 600 13px var(--body); color: var(--muted); }
+.htable { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.htable tr > :first-child { width: 30%; }
+.htable.acts tr > :nth-child(2) { width: 32%; }
+.htable th { text-align: left; padding: 2px 6px; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); }
+.htable td { padding: 5px 6px; border-top: 2px solid #E3E9F4; }
+.htable .num { text-align: right; }
+.htable .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.htable tr.mine td { background: #FFF4D6; }
+.htable small { color: var(--muted); font-size: 12px; }
+.htable .minis { justify-content: flex-start; }
+.note.bad { background: #FFE4E2; border: 3px solid var(--red); }
+
 #toast {
   position: fixed;
   left: 50%;

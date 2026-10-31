@@ -229,6 +229,7 @@ function render(v) {
   renderMe(v, prev)
   renderControls(v)
   renderGuideHighlight()
+  renderHistory()
   renderEmotes(v)
   const last = v.log[v.log.length - 1] || ''
   if ($('#ticker').dataset.text !== last) {
@@ -620,6 +621,7 @@ function renderGuideHighlight() {
   }
 }
 function openGuide() {
+  closeHistory()
   guideTab = 'hands'
   renderGuide()
   $('#guide').hidden = false
@@ -631,12 +633,98 @@ function closeGuide() {
   $('#scrim').hidden = true
 }
 
+// ---------- bet history: every action of the last hands, to check the chips add up ----------
+
+let historyNo = null // hand picked in the bet history; null follows the newest
+
+function actionText(a) {
+  const text = { raise: `raises to ${a.to}`, bet: `bets ${a.to}`, call: 'calls', check: 'checks', fold: 'folds' }[a.what] || a.what
+  return text + (a.allIn ? ' (all-in)' : '') + (a.auto ? ' <small>auto</small>' : '')
+}
+
+function renderHistory() {
+  if ($('#betHistory').hidden || !view) return
+  const hands = view.history || []
+  const h = hands.find(x => x.no === historyNo) || hands[hands.length - 1]
+  const key = JSON.stringify([h, hands.map(x => x.no)])
+  const body = $('#historyBody')
+  if (body.dataset.key === key) return
+  body.dataset.key = key
+  $('#historyTabs').innerHTML = hands.map(x =>
+    `<button role="tab" data-hand="${x.no}" aria-selected="${x === h}">#${x.no}${x.done ? '' : ' · now'}</button>`).join('')
+  $('#historyTabs [aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  if (!h) {
+    body.innerHTML = '<div class="note"><span>No hands yet. Deal the first one!</span></div>'
+    return
+  }
+
+  const me = view.me
+  const fmt = n => n.toLocaleString('en-US')
+  const row = (seat, cells) => `<tr class="${seat === me ? 'mine' : ''}">${cells}</tr>`
+  let html = `<div class="hboard"><span>Hand #${h.no}</span><div class="minis">${h.board.length ? miniCards(h.board.join(' ')) : ''}</div></div>`
+
+  const streets = [...new Set(h.actions.map(a => a.street))]
+  for (const street of streets) {
+    const acts = h.actions.filter(a => a.street === street)
+    html += `<h3 class="hstreet">${street.toUpperCase()}<span>pot ${fmt(acts[acts.length - 1].pot)}</span></h3>
+      <table class="htable acts"><thead><tr><th>Player</th><th>Action</th><th class="num">Paid</th><th class="num">Pot</th><th class="num">Stack</th></tr></thead><tbody>` +
+      acts.map(a => row(a.seat, `<td class="who">${esc(a.name)}</td><td>${actionText(a)}</td>
+        <td class="num">${a.paid ? fmt(a.paid) : ''}</td><td class="num">${fmt(a.pot)}</td><td class="num">${fmt(a.chips)}</td>`)).join('') +
+      '</tbody></table>'
+  }
+
+  if (h.shown.length) {
+    html += '<h3 class="hstreet">SHOWDOWN</h3><table class="htable"><tbody>' +
+      h.shown.map(s => `<tr><td class="who">${esc(s.name)}</td><td><div class="minis">${miniCards(s.cards.join(' '))}</div></td><td>${esc(s.hand)}</td></tr>`).join('') +
+      '</tbody></table>'
+  }
+
+  // Chips check: for each player, start − paid + won should equal what they ended with.
+  const pot = h.actions.reduce((sum, a) => sum + a.paid, 0)
+  const paidOut = h.results.reduce((sum, r) => sum + r.amount, 0)
+  const bad = []
+  html += `<h3 class="hstreet">${h.done ? 'RESULT' : 'STACKS SO FAR'}</h3>
+    <table class="htable"><thead><tr><th>Player</th><th class="num">Start</th><th class="num">Paid</th><th class="num">Won</th><th class="num">End</th></tr></thead><tbody>` +
+    h.stacks.map(s => {
+      const paid = h.actions.filter(a => a.seat === s.seat).reduce((sum, a) => sum + a.paid, 0)
+      const won = h.results.filter(r => r.seat === s.seat).reduce((sum, r) => sum + r.amount, 0)
+      if (h.done && s.start - paid + won !== s.end) bad.push(`${s.name}: ${s.start} − ${paid} + ${won} should be ${s.start - paid + won}, got ${s.end}`)
+      const hand = h.results.find(r => r.seat === s.seat)?.hand
+      return row(s.seat, `<td class="who">${esc(s.name)}${hand ? `<br><small>${esc(hand)}</small>` : ''}</td><td class="num">${fmt(s.start)}</td>
+        <td class="num">${paid ? '−' + fmt(paid) : '0'}</td><td class="num">${h.done ? (won ? '+' + fmt(won) : '0') : ''}</td>
+        <td class="num">${s.end == null ? '' : fmt(s.end)}</td>`)
+    }).join('') + '</tbody></table>'
+
+  if (h.done && pot !== paidOut) bad.unshift(`${fmt(pot)} went into the pot but ${fmt(paidOut)} was paid out`)
+  html += !h.done
+    ? `<div class="note"><span>${fmt(pot)} in the pot so far.</span></div>`
+    : bad.length
+      ? `<div class="note bad"><span><b>Chips don’t add up.</b> ${bad.map(esc).join('. ')}.</span></div>`
+      : `<div class="note"><span>✓ Chips add up: ${fmt(pot)} went in, ${fmt(paidOut)} paid out.</span></div>`
+  body.innerHTML = html
+}
+
+function openHistory() {
+  closeGuide()
+  historyNo = null
+  $('#betHistory').hidden = false
+  $('#scrim').hidden = false
+  $('#historyBody').dataset.key = ''
+  renderHistory()
+  $('#historyClose').focus()
+}
+function closeHistory() {
+  $('#betHistory').hidden = true
+  $('#scrim').hidden = true
+}
+
 // ---------- events ----------
 
 document.addEventListener('pointerdown', sfx.unlock, { passive: true })
 document.addEventListener('keydown', e => {
   sfx.unlock()
   if (e.key === 'Escape' && !$('#guide').hidden) closeGuide()
+  if (e.key === 'Escape' && !$('#betHistory').hidden) closeHistory()
   if (e.key === 'Escape' && !$('#emotePanel').hidden) toggleEmotes(false)
 })
 
@@ -644,6 +732,12 @@ document.addEventListener('click', e => {
   const btn = e.target.closest('button')
   if (!btn) return
   if (btn.matches('[data-guide]')) return openGuide()
+  if (btn.id === 'historyBtn') return openHistory()
+  if (btn.dataset.hand) {
+    const hands = view.history
+    historyNo = Number(btn.dataset.hand) === hands[hands.length - 1]?.no ? null : Number(btn.dataset.hand)
+    return renderHistory()
+  }
   if (btn.id === 'emoteBtn') return toggleEmotes()
   if (btn.dataset.tabEmote) {
     const chat = btn.dataset.tabEmote === 'chat'
@@ -680,7 +774,11 @@ async function act(btn) {
 }
 
 $('#guideClose').onclick = closeGuide
-$('#scrim').onclick = closeGuide
+$('#historyClose').onclick = closeHistory
+$('#scrim').onclick = () => {
+  closeGuide()
+  closeHistory()
+}
 
 $('#avatars').innerHTML = AVATARS.map((a, i) =>
   `<button class="avatar-pick" role="radio" aria-checked="${i === avatar}" aria-label="${a.name}" data-avatar="${i}" style="--bg:${a.bg}">${a.svg}</button>`).join('')

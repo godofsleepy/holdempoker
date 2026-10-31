@@ -64,6 +64,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5"/><path d="M10 8.5a2 2 0 1 1 2.5 1.9c-.5.2-.5.6-.5 1.1"/><path d="M12 14.5h.01"/></svg>
         <span>Hand guide</span>
       </button>
+      <button class="hudbtn round" id="historyBtn" aria-label="Bet history" aria-controls="betHistory">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 7v5l3 2"/></svg>
+      </button>
       <button class="hudbtn round" id="emoteBtn" aria-label="Emoji and chat" aria-expanded="false" aria-controls="emotePanel">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3 20.5l1.5-5A8.5 8.5 0 1 1 21 11.5z"/><path d="M9 10h.01"/><path d="M15 10h.01"/><path d="M9.5 13.5a3.5 3.5 0 0 0 5 0"/></svg>
       </button>
@@ -126,6 +129,20 @@
     </div>
   </div>
   <div class="guide-body" id="guideBody"></div>
+</aside>
+
+<aside class="guide" id="betHistory" aria-label="Bet history" hidden>
+  <div class="guide-head">
+    <div class="guide-title">
+      <div>
+        <h2>BET HISTORY</h2>
+        <p>Every bet and payout, hand by hand.</p>
+      </div>
+      <button class="close" id="historyClose" aria-label="Close bet history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg></button>
+    </div>
+    <div class="tabs handtabs" id="historyTabs" role="tablist" aria-label="Hands"></div>
+  </div>
+  <div class="guide-body" id="historyBody"></div>
 </aside>
 
 <div id="toast" role="status" hidden></div>

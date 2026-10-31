@@ -155,3 +155,36 @@ test('emotes: shown to everyone briefly, rate limited, never leak player ids', (
   assert.equal(poker.view(room, 'player-0', 1000 + poker.EMOTE_MS).emotes.length, 1)
   assert.throws(() => poker.emote(room, 'player-0', '   ', 9000), /Type a message/)
 })
+
+test('bet history: every action, stacks that add up, no hidden cards', () => {
+  const room = table(2)
+  poker.startHand(room, 0, ['As', 'Kd', 'Ah', 'Kc', '2c', '7d', '9h', 'Js', '3s'])
+  poker.act(room, 'player-0', 'call', 0, 0)
+  poker.act(room, 'player-1', 'check', 0, 0)
+  poker.act(room, 'player-1', 'raise', 100, 0)
+  poker.act(room, 'player-0', 'call', 0, 0)
+  const live = poker.view(room, 'player-1', 0).history
+  assert.equal(live.length, 1)
+  assert.deepEqual(live[0].actions.map(a => [a.street, a.name, a.what, a.paid, a.pot, a.chips]), [
+    ['Preflop', 'P0', 'small blind', 10, 10, 990],
+    ['Preflop', 'P1', 'big blind', 20, 30, 980],
+    ['Preflop', 'P0', 'call', 10, 40, 980],
+    ['Preflop', 'P1', 'check', 0, 40, 980],
+    ['Flop', 'P1', 'bet', 100, 140, 880],
+    ['Flop', 'P0', 'call', 100, 240, 880],
+  ])
+  assert.ok(!JSON.stringify(live).includes('As') && !JSON.stringify(live).includes('Kd'), 'hole cards stay hidden')
+
+  poker.act(room, 'player-1', 'check', 0, 0)
+  poker.tick(room, poker.TURN_MS) // P0 times out and checks
+  for (const id of ['player-1', 'player-0']) poker.act(room, id, 'check', 0, 0)
+  poker.setSitOut(room, 'player-0', false)
+  poker.startHand(room, 1)
+  const [done, next] = poker.view(room, 'player-1', 1).history
+  assert.equal(next.no, 2)
+  assert.ok(done.done && done.actions.find(a => a.street === 'Turn' && a.name === 'P0').auto)
+  assert.deepEqual(done.stacks.map(s => [s.name, s.start, s.end]), [['P0', 1000, 1120], ['P1', 1000, 880]])
+  assert.deepEqual(done.shown.map(s => [s.name, s.cards.join(' '), s.hand]), [['P0', 'As Ah', 'Pair'], ['P1', 'Kd Kc', 'Pair']])
+  const paid = done.actions.reduce((sum, a) => sum + a.paid, 0)
+  assert.equal(paid, done.results.reduce((sum, r) => sum + r.amount, 0))
+})
