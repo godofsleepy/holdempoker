@@ -1,0 +1,10 @@
+{
+  "pkg": "holdempoker",
+  "globalName": "HoldemParty",
+  "shape": "package",
+  "cssEntry": "public/style.css",
+  "extraFonts": [
+    ".design-sync/fonts/fonts.css"
+  ],
+  "readmeHeader": ".design-sync/conventions.md"
+}
