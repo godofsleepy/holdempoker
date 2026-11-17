@@ -3,7 +3,7 @@
 Playful multiplayer Texas Hold'em for 2–8 friends. Create a table, share the link, play.
 New to poker? Hit **Play with bots to try** for a practice table against 3 bots (no friends or name needed).
 
-- No-limit, blinds 10/20, 1000 starting chips, free rebuys
+- No-limit, blinds 50/100, 1000 starting chips, free rebuys
 - Server deals and enforces the rules; nobody can see your cards
 - 30s turn timer (timed-out players are folded and sat out), next hand auto-deals
 - Beginner friendly: "You have…" hand helper with a strength meter, labelled buttons, and a hand guide

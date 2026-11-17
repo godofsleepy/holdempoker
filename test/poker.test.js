@@ -59,18 +59,18 @@ test('heads-up hand to showdown', () => {
     poker.act(room, 'player-0', 'check', 0, 0)
   }
   assert.ok(h.done && h.showdown)
-  assert.equal(room.players[0].chips, 1020)
-  assert.equal(room.players[1].chips, 980)
+  assert.equal(room.players[0].chips, 1100)
+  assert.equal(room.players[1].chips, 900)
 })
 
 test('fold wins the pot', () => {
   const room = table(3)
   poker.startHand(room, 0)
   const first = room.players[room.hand.toAct]
-  poker.act(room, first.id, 'raise', 60, 0)
+  poker.act(room, first.id, 'raise', 300, 0)
   for (const p of room.players) if (p !== first) poker.act(room, p.id, 'fold', 0, 0)
   assert.ok(room.hand.done)
-  assert.equal(first.chips, 1030)
+  assert.equal(first.chips, 1150)
   assert.equal(totalChips(room), 3000)
 })
 
@@ -81,7 +81,7 @@ test('rejects bad actions', () => {
   const other = room.players.find(o => o !== p)
   assert.throws(() => poker.act(room, other.id, 'call', 0, 0), /Not your turn/)
   assert.throws(() => poker.act(room, p.id, 'check', 0, 0), /Can't check/)
-  assert.throws(() => poker.act(room, p.id, 'raise', 30, 0), /Minimum raise/)
+  assert.throws(() => poker.act(room, p.id, 'raise', 150, 0), /Minimum raise/)
 })
 
 test('timeout folds and sits out the player', () => {
@@ -132,10 +132,10 @@ test('beginner info: hand strength, action labels, winner seat', () => {
   const room = table(3)
   poker.startHand(room, 0)
   assert.equal(room.handNo, 1)
-  assert.deepEqual(room.players.map(p => p.action).sort(), ['', 'BLIND 10', 'BLIND 20'])
+  assert.deepEqual(room.players.map(p => p.action).sort(), ['', 'BLIND 100', 'BLIND 50'])
   const first = room.players[room.hand.toAct]
-  poker.act(room, first.id, 'raise', 60, 0)
-  assert.equal(first.action, 'RAISE 60')
+  poker.act(room, first.id, 'raise', 300, 0)
+  assert.equal(first.action, 'RAISE 300')
   const second = room.players[room.hand.toAct]
   poker.act(room, second.id, 'fold', 0, 0)
   assert.equal(second.action, 'FOLD')
@@ -166,12 +166,12 @@ test('bet history: every action, stacks that add up, no hidden cards', () => {
   const live = poker.view(room, 'player-1', 0).history
   assert.equal(live.length, 1)
   assert.deepEqual(live[0].actions.map(a => [a.street, a.name, a.what, a.paid, a.pot, a.chips]), [
-    ['Preflop', 'P0', 'small blind', 10, 10, 990],
-    ['Preflop', 'P1', 'big blind', 20, 30, 980],
-    ['Preflop', 'P0', 'call', 10, 40, 980],
-    ['Preflop', 'P1', 'check', 0, 40, 980],
-    ['Flop', 'P1', 'bet', 100, 140, 880],
-    ['Flop', 'P0', 'call', 100, 240, 880],
+    ['Preflop', 'P0', 'small blind', 50, 50, 950],
+    ['Preflop', 'P1', 'big blind', 100, 150, 900],
+    ['Preflop', 'P0', 'call', 50, 200, 900],
+    ['Preflop', 'P1', 'check', 0, 200, 900],
+    ['Flop', 'P1', 'bet', 100, 300, 800],
+    ['Flop', 'P0', 'call', 100, 400, 800],
   ])
   assert.ok(!JSON.stringify(live).includes('As') && !JSON.stringify(live).includes('Kd'), 'hole cards stay hidden')
 
@@ -183,7 +183,7 @@ test('bet history: every action, stacks that add up, no hidden cards', () => {
   const [done, next] = poker.view(room, 'player-1', 1).history
   assert.equal(next.no, 2)
   assert.ok(done.done && done.actions.find(a => a.street === 'Turn' && a.name === 'P0').auto)
-  assert.deepEqual(done.stacks.map(s => [s.name, s.start, s.end]), [['P0', 1000, 1120], ['P1', 1000, 880]])
+  assert.deepEqual(done.stacks.map(s => [s.name, s.start, s.end]), [['P0', 1000, 1200], ['P1', 1000, 800]])
   assert.deepEqual(done.shown.map(s => [s.name, s.cards.join(' '), s.hand]), [['P0', 'As Ah', 'Pair'], ['P1', 'Kd Kc', 'Pair']])
   const paid = done.actions.reduce((sum, a) => sum + a.paid, 0)
   assert.equal(paid, done.results.reduce((sum, r) => sum + r.amount, 0))
