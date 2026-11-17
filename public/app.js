@@ -410,8 +410,11 @@ function renderControls(v) {
       msg = 'You are sitting out.'
       buttons.push('<button class="chunky green" data-op="back">I’M BACK</button>')
     } else if (!h) {
-      msg = canPlay >= 2 ? 'Everyone here? Deal the first hand!' : 'Waiting for friends… tap the link icon to invite them.'
+      msg = v.practice ? 'Practice table: you vs 3 bots. Deal when ready!'
+        : canPlay >= 2 ? 'Everyone here? Deal the first hand!' : 'Waiting for friends… tap the link icon to invite them.'
       if (canPlay >= 2) buttons.push('<button class="chunky yellow" data-op="start">DEAL</button>')
+    } else if (h.done && me.chips === 0) {
+      msg = 'Out of chips! Rebuy to keep playing.'
     } else if (h.done) {
       msg = canPlay >= 2 ? `Next hand in ${Math.ceil(h.nextIn / 1000)}s…` : 'Waiting for more players…'
     } else if (!me.inHand) {
@@ -793,8 +796,8 @@ $('#avatars').addEventListener('click', e => {
 
 async function join(op) {
   const name = $('#name').value.trim()
-  if (!name) return toast('Enter your name')
-  store.set('name', name)
+  if (!name && op !== 'practice') return toast('Enter your name') // practice works without one
+  if (name) store.set('name', name)
   if (op === 'join') code = $('#code').value.trim().toUpperCase()
   if (op === 'join' && code.length !== 4) return toast('Enter the 4-letter table code')
   const data = await send({ op, name })
@@ -803,6 +806,7 @@ async function join(op) {
 
 $('#create').onclick = () => join('create')
 $('#join').onclick = () => join('join')
+$('#practice').onclick = () => join('practice')
 $('#code').onkeydown = e => {
   if (e.key === 'Enter') join('join')
 }

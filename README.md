@@ -1,6 +1,7 @@
 # Hold'em Party
 
 Playful multiplayer Texas Hold'em for 2–8 friends. Create a table, share the link, play.
+New to poker? Hit **Play with bots to try** for a practice table against 3 bots (no friends or name needed).
 
 - No-limit, blinds 10/20, 1000 starting chips, free rebuys
 - Server deals and enforces the rules; nobody can see your cards
@@ -10,6 +11,7 @@ Playful multiplayer Texas Hold'em for 2–8 friends. Create a table, share the l
 - Sound effects, with a mute button
 - Emoji and quick chat: pop a 😂 or "Nice hand!" over your avatar for everyone
 - Leaderboard on the home screen: lifetime chips won, no login (each player is a random id kept on their device)
+- Practice mode: 3 simple bots that raise good hands, call OK ones and fold junk. Practice games don't count on the leaderboard
 - Works on phones
 
 ## Run locally

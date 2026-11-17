@@ -188,3 +188,42 @@ test('bet history: every action, stacks that add up, no hidden cards', () => {
   const paid = done.actions.reduce((sum, a) => sum + a.paid, 0)
   assert.equal(paid, done.results.reduce((sum, r) => sum + r.amount, 0))
 })
+
+test('bots play a practice table on their own', () => {
+  for (let game = 0; game < 30; game++) {
+    const room = poker.newRoom('TEST')
+    poker.addPlayer(room, 'player-0', 'Me', 2)
+    poker.addBots(room, 3)
+    assert.ok(room.practice && room.players.filter(p => p.bot).length === 3)
+    assert.ok(!room.players.slice(1).some(p => p.avatar === 2), 'bots pick other buddies')
+    let now = 0
+    poker.startHand(room, now)
+    for (let i = 0; i < 300 && !room.hand.done; i++) {
+      const p = room.players[room.hand.toAct]
+      if (p.bot) {
+        assert.equal(poker.tick(room, room.hand.turnAt + poker.BOT_MS - 1), false, 'bots wait before acting')
+        now = room.hand.turnAt + poker.BOT_MS
+        assert.ok(poker.tick(room, now))
+      } else {
+        poker.act(room, p.id, room.hand.currentBet > p.bet ? 'call' : 'check', 0, now)
+      }
+    }
+    assert.ok(room.hand.done)
+    assert.equal(room.players.reduce((s, p) => s + p.chips, 0), 4000)
+  }
+})
+
+test('practice table waits for the human and rebuys broke bots', () => {
+  const room = poker.newRoom('TEST')
+  poker.addPlayer(room, 'player-0', 'Me')
+  poker.addBots(room, 2)
+  poker.startHand(room, 0)
+  poker.setSitOut(room, 'player-0', true)
+  while (!room.hand.done) poker.tick(room, room.hand.turnAt + poker.TURN_MS)
+  assert.equal(poker.tick(room, room.hand.endedAt + poker.NEXT_HAND_MS), false, 'no deal while you sit out')
+  poker.setSitOut(room, 'player-0', false)
+  room.players[1].chips = 0
+  assert.ok(poker.tick(room, room.hand.endedAt + poker.NEXT_HAND_MS))
+  assert.ok(room.players[1].inHand)
+  assert.ok(poker.view(room, 'player-0', 0).practice)
+})

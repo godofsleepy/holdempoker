@@ -11,11 +11,12 @@ function checkPid(pid) {
   return pid
 }
 
-async function newTable(pid, name, avatar) {
+async function newTable(pid, name, avatar, bots = 0) {
   for (let i = 0; i < 10; i++) {
     const code = Array.from({ length: 4 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[randomInt(24)]).join('')
     const room = poker.newRoom(code)
     poker.addPlayer(room, pid, name, avatar)
+    if (bots) poker.addBots(room, bots)
     if (await createRoom(code, room)) return room
   }
   throw new Error('Could not create a table, try again')
@@ -30,7 +31,7 @@ async function update(code, change) {
     finished = Boolean(r.hand?.done) && r.handNo !== doneHand
     return changed
   })
-  if (finished) {
+  if (finished && !room.practice) { // practice games against bots don't count
     for (const { seat, amount } of room.hand.results) {
       const p = room.players[seat]
       const profit = amount - p.total
@@ -64,8 +65,8 @@ export default async function handler(req, res) {
     const { op, code, name, avatar, action, amount } = req.body || {}
     const pid = checkPid(req.body?.pid)
     const now = Date.now()
-    const room = op === 'create'
-      ? await newTable(pid, cleanName(name), cleanAvatar(avatar))
+    const room = op === 'create' || op === 'practice'
+      ? await newTable(pid, cleanName(name), cleanAvatar(avatar), op === 'practice' ? 3 : 0)
       : await update(cleanCode(code), r => {
         if (op === 'join') poker.addPlayer(r, pid, cleanName(name), cleanAvatar(avatar))
         else if (op === 'start') poker.startHand(r, now)
